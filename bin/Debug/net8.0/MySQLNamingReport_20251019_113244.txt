@@ -1,0 +1,225 @@
+| 对象 | 当前名称 | 问题 | 建议名称 |
+|------|----------|------|----------|
+| __efmigrationshistory.MigrationId | MigrationId | 字段名应使用小写下划线命名法 | migration_id |
+| __efmigrationshistory.ProductVersion | ProductVersion | 字段名应使用小写下划线命名法 | product_version |
+| __efmigrationshistory.ProductVersion | ProductVersion | 外键字段应以下划线_id结尾 | product_version_id |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Id | Id | 字段名应使用小写下划线命名法 | id |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Username | Username | 字段名应使用小写下划线命名法 | username |
+| adminusers.Username | Username | 外键字段应以下划线_id结尾 | username_id |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.PasswordHash | PasswordHash | 字段名应使用小写下划线命名法 | password_hash |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Role | Role | 字段名应使用小写下划线命名法 | role |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.CreatedAt | CreatedAt | 字段名应使用小写下划线命名法 | created_at |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Avatar | Avatar | 字段名应使用小写下划线命名法 | avatar |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.CreatedBy | CreatedBy | 字段名应使用小写下划线命名法 | created_by |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.DeletedAt | DeletedAt | 字段名应使用小写下划线命名法 | deleted_at |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Email | Email | 字段名应使用小写下划线命名法 | email |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.IsDeleted | IsDeleted | 字段名应使用小写下划线命名法 | is_deleted |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.NickName | NickName | 字段名应使用小写下划线命名法 | nick_name |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Phone | Phone | 字段名应使用小写下划线命名法 | phone |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.Status | Status | 字段名应使用小写下划线命名法 | status |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.UpdatedAt | UpdatedAt | 字段名应使用小写下划线命名法 | updated_at |
+| adminusers | adminusers | 表名应使用小写+下划线 | adminusers |
+| adminusers.UpdatedBy | UpdatedBy | 字段名应使用小写下划线命名法 | updated_by |
+| blacklistedtokens | blacklistedtokens | 表名应使用小写+下划线 | blacklistedtokens |
+| blacklistedtokens.Id | Id | 字段名应使用小写下划线命名法 | id |
+| blacklistedtokens | blacklistedtokens | 表名应使用小写+下划线 | blacklistedtokens |
+| blacklistedtokens.Token | Token | 字段名应使用小写下划线命名法 | token |
+| blacklistedtokens | blacklistedtokens | 表名应使用小写+下划线 | blacklistedtokens |
+| blacklistedtokens.ExpiredAt | ExpiredAt | 字段名应使用小写下划线命名法 | expired_at |
+| blacklistedtokens | blacklistedtokens | 表名应使用小写+下划线 | blacklistedtokens |
+| blacklistedtokens.CreatedAt | CreatedAt | 字段名应使用小写下划线命名法 | created_at |
+| categories | categories | 表名应使用小写+下划线 | categories |
+| categories.Id | Id | 字段名应使用小写下划线命名法 | id |
+| categories | categories | 表名应使用小写+下划线 | categories |
+| categories.Name | Name | 字段名应使用小写下划线命名法 | name |
+| categories | categories | 表名应使用小写+下划线 | categories |
+| categories.Slug | Slug | 字段名应使用小写下划线命名法 | slug |
+| news | news | 表名应使用小写+下划线 | news |
+| news.Id | Id | 字段名应使用小写下划线命名法 | id |
+| news | news | 表名应使用小写+下划线 | news |
+| news.Title | Title | 字段名应使用小写下划线命名法 | title |
+| news | news | 表名应使用小写+下划线 | news |
+| news.Summary | Summary | 字段名应使用小写下划线命名法 | summary |
+| news | news | 表名应使用小写+下划线 | news |
+| news.Content | Content | 字段名应使用小写下划线命名法 | content |
+| news | news | 表名应使用小写+下划线 | news |
+| news.CoverImage | CoverImage | 字段名应使用小写下划线命名法 | cover_image |
+| news | news | 表名应使用小写+下划线 | news |
+| news.IsFeatured | IsFeatured | 字段名应使用小写下划线命名法 | is_featured |
+| news | news | 表名应使用小写+下划线 | news |
+| news.PublishDate | PublishDate | 字段名应使用小写下划线命名法 | publish_date |
+| news | news | 表名应使用小写+下划线 | news |
+| news.CategoryId | CategoryId | 字段名应使用小写下划线命名法 | category_id |
+| news | news | 表名应使用小写+下划线 | news |
+| news.CreatedAt | CreatedAt | 字段名应使用小写下划线命名法 | created_at |
+| news | news | 表名应使用小写+下划线 | news |
+| news.CreatedBy | CreatedBy | 字段名应使用小写下划线命名法 | created_by |
+| news | news | 表名应使用小写+下划线 | news |
+| news.DeletedAt | DeletedAt | 字段名应使用小写下划线命名法 | deleted_at |
+| news | news | 表名应使用小写+下划线 | news |
+| news.IsDeleted | IsDeleted | 字段名应使用小写下划线命名法 | is_deleted |
+| news | news | 表名应使用小写+下划线 | news |
+| news.UpdatedAt | UpdatedAt | 字段名应使用小写下划线命名法 | updated_at |
+| news | news | 表名应使用小写+下划线 | news |
+| news.UpdatedBy | UpdatedBy | 字段名应使用小写下划线命名法 | updated_by |
+| newstag | newstag | 表名应使用小写+下划线 | newstag |
+| newstag.Id | Id | 字段名应使用小写下划线命名法 | id |
+| newstag | newstag | 表名应使用小写+下划线 | newstag |
+| newstag.NewsId | NewsId | 字段名应使用小写下划线命名法 | news_id |
+| newstag | newstag | 表名应使用小写+下划线 | newstag |
+| newstag.TagId | TagId | 字段名应使用小写下划线命名法 | tag_id |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.Id | Id | 字段名应使用小写下划线命名法 | id |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.Name | Name | 字段名应使用小写下划线命名法 | name |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.Code | Code | 字段名应使用小写下划线命名法 | code |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.Description | Description | 字段名应使用小写下划线命名法 | description |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.CreateTime | CreateTime | 字段名应使用小写下划线命名法 | create_time |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.CreatedAt | CreatedAt | 字段名应使用小写下划线命名法 | created_at |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.UpdatedAt | UpdatedAt | 字段名应使用小写下划线命名法 | updated_at |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.IsDeleted | IsDeleted | 字段名应使用小写下划线命名法 | is_deleted |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.DeletedAt | DeletedAt | 字段名应使用小写下划线命名法 | deleted_at |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.CreatedBy | CreatedBy | 字段名应使用小写下划线命名法 | created_by |
+| roles | roles | 表名应使用小写+下划线 | roles |
+| roles.UpdatedBy | UpdatedBy | 字段名应使用小写下划线命名法 | updated_by |
+| tags | tags | 表名应使用小写+下划线 | tags |
+| tags.Id | Id | 字段名应使用小写下划线命名法 | id |
+| tags | tags | 表名应使用小写+下划线 | tags |
+| tags.Name | Name | 字段名应使用小写下划线命名法 | name |
+
+✅ 总体评分：0/100
+⚠️ 发现 108 个命名不规范问题
+
+🔧 修复建议：
+sql
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+-- 修复表名: RENAME TABLE {issue.CurrentName} TO {issue.Suggestion};
+-- 修复字段: ALTER TABLE `{parts[0]}` RENAME COLUMN `{parts[1]}` TO `{issue.Suggestion}`;
+```
