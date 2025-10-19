@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "Ridm5g22Dck=",
+  "dgSpecHash": "GvHKZ3eT3sM=",
   "success": true,
   "projectFilePath": "D:\\南禾网站建设\\mywebcode\\DBCheckAI\\DBCheckAI.csproj",
   "expectedPackageFiles": [
@@ -9,6 +9,7 @@
     "C:\\Users\\zhaor\\.nuget\\packages\\k4os.compression.lz4\\1.3.8\\k4os.compression.lz4.1.3.8.nupkg.sha512",
     "C:\\Users\\zhaor\\.nuget\\packages\\k4os.compression.lz4.streams\\1.3.8\\k4os.compression.lz4.streams.1.3.8.nupkg.sha512",
     "C:\\Users\\zhaor\\.nuget\\packages\\k4os.hash.xxhash\\1.0.8\\k4os.hash.xxhash.1.0.8.nupkg.sha512",
+    "C:\\Users\\zhaor\\.nuget\\packages\\markdig\\0.34.0\\markdig.0.34.0.nupkg.sha512",
     "C:\\Users\\zhaor\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
     "C:\\Users\\zhaor\\.nuget\\packages\\microsoft.netcore.targets\\1.1.0\\microsoft.netcore.targets.1.1.0.nupkg.sha512",
     "C:\\Users\\zhaor\\.nuget\\packages\\mysql.data\\9.4.0\\mysql.data.9.4.0.nupkg.sha512",

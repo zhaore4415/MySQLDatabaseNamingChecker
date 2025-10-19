@@ -1,89 +1,56 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Markdig;
 
-namespace MySQLDatabaseNamingChecker
+namespace DBCheckAI
 {
-    class Program
+    public class Program
     {
-        static async Task Main(string[] args)
+        public static void Main(string[] args)
         {
-            Console.WriteLine("🔍 MySQL数据库命名规范检查工具");
-            Console.WriteLine("================================");
+            var builder = WebApplication.CreateBuilder(args);
 
-            // 1. 配置MySQL数据库连接（请修改为你的连接字符串）
-            string connectionString = "Server=localhost;Database=cssao_new;Uid=root;Pwd=cssao888;";
-            //Server=localhost;Database=cssao_new;Uid=root;Pwd=cssao888;
-            // 2. 定义命名规范
-            string namingRules = @"
-## MySQL数据库命名规范（示例）
+            // 添加Razor Pages服务
+            builder.Services.AddRazorPages();
+            // 注册数据库服务
+            builder.Services.AddSingleton<DatabaseService>();
 
-✅ 表名规范：
-- 使用复数名词，如 users, orders
-- 使用小写 + 下划线：user_profile, order_item
-- 不允许使用大写字母或驼峰
-- 长度不超过64字符
+            var app = builder.Build();
 
-✅ 字段名规范：
-- 使用小驼峰命名法（lowerCamelCase）：userId, createTime, totalAmount
-- 主键必须叫 id
-- 外键必须以 _id 结尾，如 user_id, order_id
-- 创建时间字段叫 create_time，更新时间叫 update_time
-- 布尔字段用 is_xxx，如 is_active, is_deleted
-
-❌ 禁止：
-- 使用拼音（如 yonghu）
-- 使用MySQL保留字（如 order, user, group 等）
-- 使用空格或特殊字符
-- 使用MySQL不支持的字符
-
-✅ 索引命名规范：
-- 主键：PRIMARY KEY (id)
-- 普通索引：idx_字段名，如 idx_user_id
-- 唯一索引：uk_字段名，如 uk_email
-- 复合索引：idx_字段1_字段2，如 idx_user_id_status
-";
-
-            try
+            // 配置HTTP请求管道
+            if (!app.Environment.IsDevelopment())
             {
-                // 3. 提取MySQL数据库表结构
-                Console.WriteLine("📊 正在提取MySQL数据库表结构...");
-                var schema = await GetMySQLDatabaseSchemaAsync(connectionString);
-
-                if (schema.Count == 0)
-                {
-                    Console.WriteLine("❌ 未找到任何表结构，请检查数据库连接！");
-                    return;
-                }
-
-                Console.WriteLine($"✅ 成功提取 {schema.Count} 个表字段");
-
-                // 4. 生成检查报告
-                Console.WriteLine("\n🔍 正在检查命名规范...");
-                var report = await CheckNamingWithAIAsync(schema, namingRules);
-
-                // 5. 输出报告
-                Console.WriteLine("\n📋 检查结果：");
-                Console.WriteLine("=================");
-                Console.WriteLine(report);
-
-                // 6. 保存报告到文件
-                SaveReportToFile(report);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 检查过程中出现错误：{ex.Message}");
+                app.UseExceptionHandler("/Error");
+                app.UseHsts();
             }
 
-            Console.WriteLine("\n按任意键退出...");
-            Console.ReadKey();
+            app.UseHttpsRedirection();
+            app.UseStaticFiles();
+
+            app.UseRouting();
+
+            app.UseAuthorization();
+
+            app.MapRazorPages();
+
+            app.Run();
         }
+    }
 
+    // 数据库服务类
+    public class DatabaseService
+    {
         // 提取MySQL数据库表和字段信息
-        public static async Task<List<DbObject>> GetMySQLDatabaseSchemaAsync(string connectionString)
+        public async Task<List<DbObject>> GetMySQLDatabaseSchemaAsync(string connectionString)
         {
             var result = new List<DbObject>();
 
@@ -118,7 +85,8 @@ namespace MySQLDatabaseNamingChecker
                             IsNullable = reader["IS_NULLABLE"].ToString() == "YES",
                             ColumnKey = reader["COLUMN_KEY"].ToString(),
                             ColumnDefault = reader["COLUMN_DEFAULT"]?.ToString(),
-                            Extra = reader["EXTRA"]?.ToString()
+                            Extra = reader["EXTRA"]?.ToString(),
+                            ConstraintType = string.Empty // 初始化约束类型
                         });
                     }
                 }
@@ -127,10 +95,10 @@ namespace MySQLDatabaseNamingChecker
             return result;
         }
 
-        // 调用通义千问自动检查命名规范
-        public static async Task<string> CheckNamingWithAIAsync(List<DbObject> schema, string namingRules)
+        // 检查命名规范
+        public async Task<string> CheckNamingWithRulesAsync(List<DbObject> schema, string namingRules)
         {
-            // 构造输入给 AI 的提示词
+            // 构造输入内容
             var sb = new StringBuilder();
             sb.AppendLine("请根据以下命名规范，检查MySQL数据库对象是否合规。");
             sb.AppendLine(namingRules);
@@ -157,88 +125,91 @@ namespace MySQLDatabaseNamingChecker
                 sb.AppendLine();
             }
 
-            sb.AppendLine();
-            sb.AppendLine("## 要求");
-            sb.AppendLine("1. 列出所有不符合规范的表名和字段名");
-            sb.AppendLine("2. 说明违反了哪条规则");
-            sb.AppendLine("3. 建议修正后的名称");
-            sb.AppendLine("4. 格式：| 对象 | 当前名称 | 问题 | 建议名称 |");
-            sb.AppendLine("5. 最后给出总体评分（如 85/100）");
-            sb.AppendLine("6. 如果问题严重，建议生成 ALTER TABLE 语句");
-
-            var prompt = sb.ToString();
-
-            // 模拟调用AI（在实际项目中替换为真实的API调用）
-            // 在实际项目中，这里应该调用通义千问API
+            // 调用模拟的检查函数
             return SimulateAIResponse(schema, namingRules);
         }
 
-        // 模拟AI响应（在实际项目中替换为真实的API调用）
         // 模拟AI响应（输出为 Markdown 格式）
-        public static string SimulateAIResponse(List<DbObject> schema, string rules)
+        public string SimulateAIResponse(List<DbObject> schema, string rules)
         {
             var issues = new List<(string Object, string CurrentName, string Problem, string Suggestion)>();
 
-            // PostgreSQL保留字列表（部分）
+            // MySQL保留字列表
             var reservedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC",
-        "ASYMMETRIC", "BOTH", "CASE", "CAST", "CHECK", "COLLATE", "COLUMN",
-        "CONCURRENTLY", "CONSTRAINT", "CREATE", "CROSS", "CURRENT_CATALOG",
-        "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_SCHEMA", "CURRENT_TIME",
-        "CURRENT_TIMESTAMP", "CURRENT_USER", "DEFAULT", "DEFERRABLE",
-        "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT", "FALSE", "FETCH",
-        "FOR", "FOREIGN", "FROM", "GRANT", "GROUP", "HAVING", "ILIKE",
-        "IN", "INITIALLY", "INTERSECT", "INTO", "IS", "ISNULL", "JOIN",
-        "LATERAL", "LEADING", "LEFT", "LIKE", "LIMIT", "LOCALTIME",
-        "LOCALTIMESTAMP", "NATURAL", "NOT", "NOTNULL", "NULL", "OFFSET",
-        "ON", "ONLY", "OR", "ORDER", "OUTER", "OVERLAPS", "PLACING",
-        "PRIMARY", "REFERENCES", "RETURNING", "RIGHT", "SELECT", "SESSION_USER",
-        "SIMILAR", "SOME", "SYMMETRIC", "TABLE", "THEN", "TO", "TRAILING",
-        "TRUE", "UNION", "UNIQUE", "USER", "USING", "VARIADIC", "VERBOSE",
-        "WHEN", "WHERE", "WINDOW", "WITH"
-    };
+            {
+                "ALL", "ALTER", "AND", "AS", "ASC", "AUTO_INCREMENT", "BETWEEN", "BIGINT",
+                "BINARY", "BOOLEAN", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHAR",
+                "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE",
+                "CREATE", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+                "CURRENT_USER", "DATABASE", "DATEDIFF", "DATE_FORMAT", "DATE_SUB", "DECIMAL",
+                "DEFAULT", "DELETE", "DESC", "DESCRIBE", "DISTINCT", "DIV", "DOUBLE", "DROP",
+                "ELSE", "ELSEIF", "END", "ENGINE", "ESCAPE", "EXISTS", "EXIT", "EXPLAIN",
+                "FALSE", "FLOAT", "FOR", "FOREIGN", "FROM", "FULLTEXT", "GROUP", "HAVING",
+                "HIGH_PRIORITY", "HOUR", "IF", "IGNORE", "IN", "INDEX", "INNER", "INSERT",
+                "INT", "INTEGER", "INTERVAL", "INTO", "IS", "JOIN", "KEY", "KEYS", "KILL",
+                "LEFT", "LIKE", "LIMIT", "LOW_PRIORITY", "MATCH", "MEDIUMINT", "MOD", "MODIFY",
+                "NOT", "NO_WRITE_TO_BINLOG", "NULL", "ON", "OPTIMIZE", "OR", "ORDER", "OUTER",
+                "OVER", "PARTITION", "PRECISION", "PRIMARY", "PROCEDURE", "PURGE", "RANGE",
+                "READ", "REFERENCES", "REGEXP", "RENAME", "REPLACE", "REQUIRE", "RESTRICT",
+                "RETURN", "REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SELECT", "SET", "SHOW",
+                "SIGNAL", "SMALLINT", "SONAME", "SPATIAL", "SQL", "SQLEXCEPTION", "SQLSTATE",
+                "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "SSL",
+                "STARTING", "STRAIGHT_JOIN", "TABLE", "TERMINATED", "THEN", "TIME", "TIMESTAMP",
+                "TINYINT", "TO", "TRUNCATE", "TRUE", "UNION", "UNIQUE", "UNLOCK", "UPDATE",
+                "USAGE", "USE", "USER", "USING", "VALUE", "VALUES", "VARBINARY", "VARCHAR",
+                "VARCHARACTER", "VARYING", "VIEW", "WHEN", "WHERE", "WHILE", "WITH", "WRITE"
+            };
 
             foreach (var obj in schema)
             {
                 // 检查表名：应为小写下划线
-                if (obj.TableName != obj.TableName.ToLower() || !obj.TableName.Contains("_"))
+                if (obj.TableName != obj.TableName.ToLower())
                 {
                     var suggested = ToSnakeCase(obj.TableName);
-                    issues.Add((obj.TableName, obj.TableName, "表名应使用小写+下划线命名法", suggested));
+                    issues.Add((obj.TableName, obj.TableName, "表名应使用小写命名", suggested));
                 }
 
                 // 检查表名是否为保留字
                 if (reservedWords.Contains(obj.TableName))
                 {
-                    issues.Add((obj.TableName, obj.TableName, "表名使用了PostgreSQL保留字", $"tbl_{obj.TableName}"));
+                    issues.Add((obj.TableName, obj.TableName, "表名使用了MySQL保留字", $"tbl_{obj.TableName}"));
                 }
 
-                // 检查字段名：应为小写下划线
-                if (obj.ColumnName != obj.ColumnName.ToLower() || obj.ColumnName.Contains("_") == false)
+                // 检查字段名
+                if (obj.ColumnName != obj.ColumnName.ToLower())
                 {
                     var suggested = ToSnakeCase(obj.ColumnName);
-                    issues.Add(($"{obj.TableName}.{obj.ColumnName}", obj.ColumnName, "字段名应使用小写+下划线命名法", suggested));
+                    issues.Add((obj.TableName + "." + obj.ColumnName, obj.ColumnName, "字段名应使用小写命名", suggested));
                 }
 
                 // 检查字段名是否为保留字
                 if (reservedWords.Contains(obj.ColumnName))
                 {
-                    issues.Add(($"{obj.TableName}.{obj.ColumnName}", obj.ColumnName, "字段名使用了PostgreSQL保留字", $"col_{obj.ColumnName}"));
+                    issues.Add((obj.TableName + "." + obj.ColumnName, obj.ColumnName, "字段名使用了MySQL保留字", $"col_{obj.ColumnName}"));
                 }
 
-                // 检查外键命名规范
-                if (obj.ConstraintType == "FOREIGN KEY" && !obj.ColumnName.EndsWith("_id"))
+                // 检查主键命名
+                if (obj.ColumnKey == "PRI" && obj.ColumnName != "id")
                 {
-                    var suggested = ToSnakeCase(obj.ColumnName) + "_id";
-                    issues.Add(($"{obj.TableName}.{obj.ColumnName}", obj.ColumnName, "外键字段应以 _id 结尾", suggested));
+                    issues.Add((obj.TableName + "." + obj.ColumnName, obj.ColumnName, "主键字段应命名为'id'", "id"));
+                }
+
+                // 检查外键命名（简化判断，实际应基于外键约束）
+                if (obj.ColumnName.Contains("id") && !obj.ColumnName.EndsWith("_id"))
+                {
+                    // 排除主键
+                    if (obj.ColumnKey != "PRI")
+                    {
+                        var suggested = ToSnakeCase(obj.ColumnName) + "_id";
+                        issues.Add((obj.TableName + "." + obj.ColumnName, obj.ColumnName, "外键字段应以 '_id' 结尾", suggested));
+                    }
                 }
             }
 
             var result = new StringBuilder();
 
             // Markdown 标题
-            result.AppendLine("# 📊 PostgreSQL数据库命名规范检查报告");
+            result.AppendLine("# 📊 MySQL数据库命名规范检查报告");
             result.AppendLine();
             result.AppendLine($"📅 生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             result.AppendLine();
@@ -275,11 +246,11 @@ namespace MySQLDatabaseNamingChecker
                     if (issue.Object.Contains("."))
                     {
                         var parts = issue.Object.Split('.');
-                        result.AppendLine($"-- 修复字段: ALTER TABLE \"{parts[0]}\" RENAME COLUMN \"{parts[1]}\" TO \"{issue.Suggestion}\";");
+                        result.AppendLine($"ALTER TABLE `{parts[0]}` CHANGE COLUMN `{parts[1]}` `{issue.Suggestion}` {GetColumnDataType(schema, parts[0], parts[1])};");
                     }
                     else
                     {
-                        result.AppendLine($"-- 修复表名: ALTER TABLE \"{issue.CurrentName}\" RENAME TO \"{issue.Suggestion}\";");
+                        result.AppendLine($"ALTER TABLE `{issue.CurrentName}` RENAME TO `{issue.Suggestion}`;");
                     }
                 }
                 result.AppendLine("```");
@@ -288,44 +259,31 @@ namespace MySQLDatabaseNamingChecker
             return result.ToString();
         }
 
+        // 获取字段的数据类型
+        private string GetColumnDataType(List<DbObject> schema, string tableName, string columnName)
+        {
+            var column = schema.FirstOrDefault(c => c.TableName == tableName && c.ColumnName == columnName);
+            if (column != null)
+            {
+                // 简化的数据类型返回，实际应用中可能需要更复杂的处理
+                return column.DataType;
+            }
+            return "VARCHAR(255)";
+        }
+
         /// <summary>
-        /// 更智能地将 PascalCase/camelCase 转为 snake_case
-        /// 支持处理缩写词，如 HTTPCode -> http_code
+        /// 将 PascalCase/camelCase 转为 snake_case
         /// </summary>
-        public static string ToSnakeCase(string input)
+        public string ToSnakeCase(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return input;
 
-            // 在小写字母后接大写字母的地方插入下划线（如: UserN -> User_N）
-            // 在大写字母后接小写字母的地方插入下划线（如: HTTPResponse -> HTTP_Response）
+            // 在小写字母后接大写字母的地方插入下划线
             var result = Regex.Replace(input, @"([a-z0-9])([A-Z])", "$1_$2");
             // 全部转为小写
             return result.ToLower();
         }
-        // 将驼峰命名转换为下划线命名
-        //private static string ConvertToSnakeCase(string camelCase)
-        //{
-        //    var result = new StringBuilder();
-        //    for (int i = 0; i < camelCase.Length; i++)
-        //    {
-        //        if (char.IsUpper(camelCase[i]) && i > 0)
-        //        {
-        //            result.Append("_");
-        //        }
-        //        result.Append(char.ToLower(camelCase[i]));
-        //    }
-        //    return result.ToString();
-        //}
-
-        // 保存报告到文件
-        public static void SaveReportToFile(string report)
-        {
-            string fileName = $"DatabaseNamingReport_{DateTime.Now:yyyyMMdd_HHmmss}.md";
-            System.IO.File.WriteAllText(fileName, report);
-            Console.WriteLine($"📄 报告已保存到：{fileName}");
-        }
-
     }
 
     // 数据模型
@@ -338,8 +296,7 @@ namespace MySQLDatabaseNamingChecker
         public string ColumnKey { get; set; }
         public string ColumnDefault { get; set; }
         public string Extra { get; set; }
-
-        public string ConstraintType { get; set; } // 👈 必须包含这个属性！
+        public string ConstraintType { get; set; }
     }
 }
 

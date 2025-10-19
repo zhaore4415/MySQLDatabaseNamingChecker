@@ -1,0 +1,70 @@
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# Visual Studio 文件
+.vs/
+.vsconfig
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build 文件
+bin/
+obj/
+*.pubxml
+*.pubxml.user
+
+# NuGet 包
+packages/
+*.nupkg
+.nuget/
+
+# 测试结果
+TestResults/
+.coverage
+.coverlet/
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# IDE 特定文件
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# 调试相关
+*.pdb
+*.vshost.exe
+*.vshost.exe.manifest
+
+# 用户特定文件
+*.user
+*.users
+
+# Web 相关
+wwwroot/lib/
+wwwroot/dist/
+
+# 数据库文件
+*.mdf
+*.ldf
+*.bak
+*.db
+
+# 其他临时文件
+App_Data/
+*.cache
+*.psess
+*.sdf
+*.opensdf

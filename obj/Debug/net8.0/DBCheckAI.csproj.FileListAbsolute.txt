@@ -14,7 +14,6 @@ D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\K4os.Compression.LZ4.
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\K4os.Hash.xxHash.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\MySql.Data.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\System.Configuration.ConfigurationManager.dll
-D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\System.Diagnostics.EventLog.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\System.IO.Pipelines.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\System.Security.Cryptography.ProtectedData.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\System.Security.Permissions.dll
@@ -27,8 +26,6 @@ D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win-x64\nati
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win-x64\native\k5sprt64.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win-x64\native\krb5_64.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win-x64\native\krbcc64.dll
-D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win\lib\net8.0\System.Diagnostics.EventLog.Messages.dll
-D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win\lib\net8.0\System.Diagnostics.EventLog.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\runtimes\win\lib\net8.0\System.Windows.Extensions.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.csproj.AssemblyReference.cache
@@ -38,3 +35,20 @@ D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\refint\DBCheckAI.dll
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.pdb
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.genruntimeconfig.cache
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\ref\DBCheckAI.dll
+D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\DBCheckAI.staticwebassets.endpoints.json
+D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\Markdig.dll
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.MvcApplicationPartsAssemblyInfo.cache
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.RazorAssemblyInfo.cache
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.RazorAssemblyInfo.cs
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\DBCheckAI.sourcelink.json
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\scopedcss\bundle\DBCheckAI.styles.css
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.build.json
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.development.json
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.build.endpoints.json
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.DBCheckAI.Microsoft.AspNetCore.StaticWebAssets.props
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.DBCheckAI.Microsoft.AspNetCore.StaticWebAssetEndpoints.props
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.build.DBCheckAI.props
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.buildMultiTargeting.DBCheckAI.props
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.buildTransitive.DBCheckAI.props
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.pack.json
+D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
