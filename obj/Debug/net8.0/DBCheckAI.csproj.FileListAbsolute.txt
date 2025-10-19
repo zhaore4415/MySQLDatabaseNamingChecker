@@ -51,4 +51,5 @@ D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbui
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.buildMultiTargeting.DBCheckAI.props
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets\msbuild.buildTransitive.DBCheckAI.props
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.pack.json
+D:\南禾网站建设\mywebcode\DBCheckAI\bin\Debug\net8.0\DBCheckAI.staticwebassets.runtime.json
 D:\南禾网站建设\mywebcode\DBCheckAI\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
