@@ -12,7 +12,7 @@ namespace DBCheckAI.Pages
         public IndexModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            // 不再写死连接字符串，让用户从前端输入
+            // 不再写死连接字符串，让用户从前端输入输入
             ConnectionString = string.Empty;
             // 设置默认命名规则
             DefaultNamingRules = GetDefaultNamingRules();
