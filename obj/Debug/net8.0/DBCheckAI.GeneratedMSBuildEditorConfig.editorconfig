@@ -9,33 +9,33 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = DBCheckAI
 build_property.RootNamespace = DBCheckAI
-build_property.ProjectDir = D:\南禾网站建设\mywebcode\DBCheckAI\
+build_property.ProjectDir = d:\zhaohuan\南禾\MySQLDatabaseNamingChecker\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 8.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = D:\南禾网站建设\mywebcode\DBCheckAI
+build_property.MSBuildProjectDirectory = d:\zhaohuan\南禾\MySQLDatabaseNamingChecker
 build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 8.0
 build_property.EnableCodeStyleSeverity = 
 
-[D:/南禾网站建设/mywebcode/DBCheckAI/Pages/Error.cshtml]
+[d:/zhaohuan/南禾/MySQLDatabaseNamingChecker/Pages/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3IuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/南禾网站建设/mywebcode/DBCheckAI/Pages/Index.cshtml]
+[d:/zhaohuan/南禾/MySQLDatabaseNamingChecker/Pages/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXguY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/南禾网站建设/mywebcode/DBCheckAI/Pages/Shared/_Layout.cshtml]
+[d:/zhaohuan/南禾/MySQLDatabaseNamingChecker/Pages/Shared/_Layout.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9MYXlvdXQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/南禾网站建设/mywebcode/DBCheckAI/Pages/_ViewImports.cshtml]
+[d:/zhaohuan/南禾/MySQLDatabaseNamingChecker/Pages/_ViewImports.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/南禾网站建设/mywebcode/DBCheckAI/Pages/_ViewStart.cshtml]
+[d:/zhaohuan/南禾/MySQLDatabaseNamingChecker/Pages/_ViewStart.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdTdGFydC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 

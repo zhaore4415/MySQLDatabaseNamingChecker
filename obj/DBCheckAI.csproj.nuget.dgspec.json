@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\南禾网站建设\\mywebcode\\DBCheckAI\\DBCheckAI.csproj": {}
+    "D:\\zhaohuan\\南禾\\MySQLDatabaseNamingChecker\\DBCheckAI.csproj": {}
   },
   "projects": {
-    "D:\\南禾网站建设\\mywebcode\\DBCheckAI\\DBCheckAI.csproj": {
+    "D:\\zhaohuan\\南禾\\MySQLDatabaseNamingChecker\\DBCheckAI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\南禾网站建设\\mywebcode\\DBCheckAI\\DBCheckAI.csproj",
+        "projectUniqueName": "D:\\zhaohuan\\南禾\\MySQLDatabaseNamingChecker\\DBCheckAI.csproj",
         "projectName": "DBCheckAI",
-        "projectPath": "D:\\南禾网站建设\\mywebcode\\DBCheckAI\\DBCheckAI.csproj",
-        "packagesPath": "C:\\Users\\zhaor\\.nuget\\packages\\",
-        "outputPath": "D:\\南禾网站建设\\mywebcode\\DBCheckAI\\obj\\",
+        "projectPath": "D:\\zhaohuan\\南禾\\MySQLDatabaseNamingChecker\\DBCheckAI.csproj",
+        "packagesPath": "C:\\Users\\BSI\\.nuget\\packages\\",
+        "outputPath": "D:\\zhaohuan\\南禾\\MySQLDatabaseNamingChecker\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\zhaor\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\BSI\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,7 +26,8 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "https://api.nuget.org/v3/index.json": {}
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget-hosted.shijizhongyun.com/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {

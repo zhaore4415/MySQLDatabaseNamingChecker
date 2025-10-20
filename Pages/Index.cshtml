@@ -6,7 +6,7 @@
 
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="card shadow-lg">
                 <div class="card-header bg-primary text-white text-center">
                     <h2 class="mb-0">🔍 MySQL数据库命名规范检查工具</h2>
@@ -33,7 +33,7 @@
                                 name="namingRules" 
                                 rows="10" 
                                 required>
-@Model.DefaultNamingRules</textarea>
+@Model.NamingRules</textarea>
                             <div class="form-text text-muted">可以自定义命名规范规则</div>
                         </div>
 
@@ -41,6 +41,13 @@
                             <i class="fas fa-check-circle"></i> 开始检查
                         </button>
                     </form>
+                    
+                    @if (!ModelState.IsValid)
+                    {
+                        <div class="mt-3 alert alert-danger">
+                            @Html.ValidationSummary()
+                        </div>
+                    }
                 </div>
             </div>
 

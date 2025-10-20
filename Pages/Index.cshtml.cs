@@ -12,8 +12,12 @@ namespace DBCheckAI.Pages
         public IndexModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            ConnectionString = "Server=localhost;Database=test;Uid=root;Pwd=password;";
+            // 不再写死连接字符串，让用户从前端输入
+            ConnectionString = string.Empty;
+            // 设置默认命名规则
             DefaultNamingRules = GetDefaultNamingRules();
+            // 初始化NamingRules为默认规则
+            NamingRules = DefaultNamingRules;
         }
 
         [BindProperty]
@@ -29,12 +33,29 @@ namespace DBCheckAI.Pages
         public void OnGet()
         {
             // 初始化页面数据
+            // 如果是首次访问，设置默认的连接字符串占位符
+            if (string.IsNullOrEmpty(ConnectionString))
+            {
+                ConnectionString = "Server=localhost;Database=test;Uid=root;Pwd=password;";
+            }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {            
+            // 验证表单数据
+            if (!ModelState.IsValid)
+            {
+                return Page();
+            }
+
             try
             {
+                // 确保NamingRules有值
+                if (string.IsNullOrEmpty(NamingRules))
+                {
+                    NamingRules = DefaultNamingRules;
+                }
+
                 // 提取数据库架构
                 var schema = await _databaseService.GetMySQLDatabaseSchemaAsync(ConnectionString);
                 
@@ -56,8 +77,7 @@ namespace DBCheckAI.Pages
         }
 
         private string GetDefaultNamingRules()
-        {
-            return @"## MySQL数据库命名规范
+        {            return @"## MySQL数据库命名规范
 
 ✅ 表名规范：
 - 使用复数名词，如 users, orders
@@ -82,7 +102,6 @@ namespace DBCheckAI.Pages
 - 主键：PRIMARY KEY (id)
 - 普通索引：idx_字段名，如 idx_user_id
 - 唯一索引：uk_字段名，如 uk_email
-- 复合索引：idx_字段1_字段2，如 idx_user_id_status";
-        }
+- 复合索引：idx_字段1_字段2，如 idx_user_id_status";            }
     }
 }

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DBCheckAI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+911505b106b7136f2ad403e78ca2f042ae4e377b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cfd6a5f825fa951930ee93817c2ce9f2b4c17a2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("DBCheckAI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DBCheckAI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -17,10 +17,22 @@ obj/
 *.pubxml
 *.pubxml.user
 
+# .NET 8.0 特定文件
+*.dll
+*.exe
+*.exe.config
+*.dll.config
+*.runtimeconfig.json
+
 # NuGet 包
 packages/
 *.nupkg
 .nuget/
+.nuget/packages/
+project.lock.json
+
+# .NET Core 工具
+.dncache/
 
 # 测试结果
 TestResults/
@@ -68,3 +80,33 @@ App_Data/
 *.psess
 *.sdf
 *.opensdf
+
+# 构建和发布文件夹
+/build/
+/out/
+/publish/
+/release/
+
+# .NET 8.0 运行时
+/runtime/
+
+# Rider IDE
+*.sln.iml
+*.csproj.iml
+*.DotSettings
+.idea/**/*
+
+# 性能分析文件
+*.diagsession
+*.psess
+
+# 自动生成的文件
+/Generated/
+/Templates/Generated/
+
+# 本地化文件（可选，如果不需要版本控制）
+*.resx
+
+# Web 配置（可选，如果包含敏感信息）
+Web.config
+appsettings.*.json
