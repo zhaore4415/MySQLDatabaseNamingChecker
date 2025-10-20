@@ -6,7 +6,8 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:41135;http://localhost:41136"
+      //"applicationUrl": "https://localhost:41135;http://localhost:41136"
+      "applicationUrl": "http://0.0.0.0:5000" // 关键：0.0.0.0 表示监听所有接口
     }
   }
 }
