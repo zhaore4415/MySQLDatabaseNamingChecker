@@ -17,6 +17,10 @@ obj/
 *.pubxml
 *.pubxml.user
 
+# 确保obj文件夹及其所有子目录都被忽略
+**/obj/
+**/bin/
+
 # .NET 8.0 特定文件
 *.dll
 *.exe
@@ -110,3 +114,4 @@ App_Data/
 # Web 配置（可选，如果包含敏感信息）
 Web.config
 appsettings.*.json
+/obj/Debug/net8.0/DBCheckAI.AssemblyInfo.cs
