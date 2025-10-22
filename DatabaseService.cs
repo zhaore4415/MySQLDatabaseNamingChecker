@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DBCheckAI
 {
@@ -11,25 +12,21 @@ namespace DBCheckAI
     /// </summary>
     public class DbObject
     {
-        [Required]
-        public string TableName { get; set; }
+        public string? TableName { get; set; }
 
-        [Required]
-        public string ColumnName { get; set; }
+        public string? ColumnName { get; set; }
 
-        [Required]
-        public string DataType { get; set; } // 如 "varchar"
+        public string? DataType { get; set; } // 如 "varchar"
 
-        [Required]
-        public string ColumnType { get; set; } // 完整类型，如 "varchar(16)", "int unsigned"
+        public string? ColumnType { get; set; } // 完整类型，如 "varchar(16)", "int unsigned"
 
         public bool IsNullable { get; set; }
 
-        public string ColumnKey { get; set; } // PRI, MUL, UNI, 空
+        public string? ColumnKey { get; set; } // PRI, MUL, UNI, 空
 
-        public string ColumnDefault { get; set; }
+        public string? ColumnDefault { get; set; }
 
-        public string Extra { get; set; } // auto_increment 等
+        public string? Extra { get; set; } // auto_increment 等
 
         public bool IsForeignKey { get; set; } // 是否为外键字段
     }
@@ -39,6 +36,12 @@ namespace DBCheckAI
     /// </summary>
     public class DatabaseService
     {
+        private readonly IAIService _aiService;
+
+        public DatabaseService(IAIService aiService = null)
+        {
+            _aiService = aiService;
+        }
         /// <summary>
         /// 从 MySQL 数据库提取表和字段信息（含完整列类型）
         /// </summary>
@@ -85,7 +88,10 @@ namespace DBCheckAI
                     {
                         var tableName = fkReader["TABLE_NAME"].ToString();
                         var columnName = fkReader["COLUMN_NAME"].ToString();
-                        foreignKeys.Add((tableName, columnName));
+                        if (tableName != null && columnName != null)
+                        {
+                            foreignKeys.Add((tableName, columnName));
+                        }
                     }
                     fkReader.Close(); // 关闭后执行下一个查询
                 }
@@ -109,7 +115,7 @@ namespace DBCheckAI
                             ColumnKey = reader["COLUMN_KEY"].ToString(),
                             ColumnDefault = reader["COLUMN_DEFAULT"]?.ToString(),
                             Extra = reader["EXTRA"]?.ToString(),
-                            IsForeignKey = foreignKeys.Contains((tableName, columnName))
+                            IsForeignKey = tableName != null && columnName != null && foreignKeys.Contains((tableName, columnName))
                         });
                     }
                 }
@@ -119,14 +125,63 @@ namespace DBCheckAI
         }
 
         /// <summary>
-        /// 检查数据库命名规范（模拟 AI 响应，输出 Markdown 报告）
+        /// 检查数据库命名规范（支持选择AI提供商）
         /// </summary>
         /// <param name="schema">数据库结构列表</param>
         /// <param name="namingRules">命名规则说明（可选）</param>
+        /// <param name="aiProvider">AI提供商选择：simulation、tongyi、deepseek</param>
         /// <returns>Markdown 格式的检查报告</returns>
-        public async Task<string> CheckNamingWithRulesAsync(List<DbObject> schema, string namingRules = null)
+        public async Task<string> CheckNamingWithRulesAsync(List<DbObject> schema, string namingRules = null, string aiProvider = "simulation")
         {
-            return SimulateAIResponse(schema, namingRules ?? "默认命名规范：小写下划线命名法（snake_case）");
+            var rules = namingRules ?? "默认命名规范：小写下划线命名法（snake_case）";
+            
+            if (aiProvider == "simulation" || _aiService == null)
+            {
+                // 使用模拟实现
+                return SimulateAIResponse(schema, rules);
+            }
+            else
+            {
+                // 根据选择的提供商配置AI服务
+                var prompt = GenerateAIPrompt(schema, rules);
+                var aiResponse = await _aiService.GetResponseAsync(prompt, aiProvider);
+                return aiResponse;
+            }
+        }
+
+        /// <summary>
+        /// 生成AI提示词
+        /// </summary>
+        private string GenerateAIPrompt(List<DbObject> schema, string rules)
+        {
+            var prompt = new StringBuilder();
+            prompt.AppendLine("你是一名数据库命名规范专家，请根据提供的命名规则检查以下MySQL数据库结构，并生成详细的Markdown格式检查报告。");
+            prompt.AppendLine();
+            prompt.AppendLine("## 命名规则");
+            prompt.AppendLine(rules);
+            prompt.AppendLine();
+            prompt.AppendLine("## 数据库结构");
+            prompt.AppendLine("| 表名 | 字段名 | 字段类型 | 是否主键 | 是否外键 |");
+            prompt.AppendLine("|------|--------|----------|----------|----------|");
+
+            foreach (var tableGroup in schema.GroupBy(s => s.TableName))
+            {
+                foreach (var obj in tableGroup)
+                {
+                    prompt.AppendLine($"| {obj.TableName} | {obj.ColumnName} | {obj.ColumnType} | {(obj.ColumnKey == "PRI" ? "是" : "否")} | {(obj.IsForeignKey ? "是" : "否")} |");
+                }
+            }
+
+            prompt.AppendLine();
+            prompt.AppendLine("请按照以下格式生成报告：");
+            prompt.AppendLine("1. 报告标题和生成时间");
+            prompt.AppendLine("2. 检查摘要（总表数、总字段数、不合规项数量、合规率）");
+            prompt.AppendLine("3. 不符合规范的命名列表（表格形式，包含类型、对象、当前名称、问题、建议名称）");
+            prompt.AppendLine("4. 建议的SQL修复语句");
+            prompt.AppendLine();
+            prompt.AppendLine("请确保报告使用Markdown格式，语言为中文。");
+            
+            return prompt.ToString();
         }
 
         /// <summary>

@@ -6,7 +6,7 @@
 
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-10">
+        <div class="col-md-12">
             <div class="card shadow-lg">
                 <div class="card-header bg-primary text-white text-center">
                     <h2 class="mb-0">🔍 MySQL数据库命名规范检查工具</h2>
@@ -26,6 +26,19 @@
                         </div>
 
                         <div class="form-group">
+                            <label for="aiProvider" class="form-label font-weight-bold">AI提供商</label>
+                            <select 
+                                class="form-control"
+                                id="aiProvider"
+                                name="aiProvider"
+                                asp-for="AIProvider"
+                                asp-items="Model.AIProviderOptions"
+                                required>
+                            </select>
+                            <div class="form-text text-muted">选择使用哪种AI服务进行命名规范检查</div>
+                        </div>
+
+                        <div class="form-group">
                             <label for="namingRules" class="form-label font-weight-bold">命名规范规则</label>
                             <textarea 
                                 class="form-control" 
@@ -37,10 +50,116 @@
                             <div class="form-text text-muted">可以自定义命名规范规则</div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 py-2">
-                            <i class="fas fa-check-circle"></i> 开始检查
-                        </button>
+                        <button type="button" id="checkButton" class="btn btn-primary w-100 py-2">
+                                    <i class="fas fa-check-circle"></i> 开始检查
+                                </button>
+                                
+                                <!-- 加载状态指示器 -->
+                                <div id="loadingIndicator" class="text-center mt-3" style="display: none;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="sr-only">处理中...</span>
+                                    </div>
+                                    <p class="mt-2">正在分析数据库命名规范，请稍候...</p>
+                                </div>
+                                
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        const checkButton = document.getElementById('checkButton');
+                                        const loadingIndicator = document.getElementById('loadingIndicator');
+                                        const reportContainer = document.getElementById('reportContainer');
+                                        const errorMessage = document.getElementById('errorMessage');
+                                        
+                                        checkButton.addEventListener('click', function() {
+                                            // 显示加载指示器
+                                            loadingIndicator.style.display = 'block';
+                                            // 禁用按钮
+                                            checkButton.disabled = true;
+                                            // 隐藏之前的报告和错误信息
+                                            if (reportContainer) reportContainer.style.display = 'none';
+                                            if (errorMessage) errorMessage.style.display = 'none';
+                                            
+                                            // 获取表单数据 - 添加空值检查
+                                            const formData = new FormData();
+                                            
+                                            // 使用小写ID匹配HTML中的实际元素
+                                            const connectionStringElement = document.getElementById('connectionString');
+                                            if (connectionStringElement) {
+                                                formData.append('ConnectionString', connectionStringElement.value);
+                                            }
+                                            
+                                            const namingRulesElement = document.getElementById('namingRules');
+                                            if (namingRulesElement) {
+                                                formData.append('NamingRules', namingRulesElement.value);
+                                            }
+                                            
+                                            const aiProviderElement = document.getElementById('aiProvider');
+                                            if (aiProviderElement) {
+                                                formData.append('AIProvider', aiProviderElement.value);
+                                            }
+                                            
+                                            // 获取验证令牌，如果存在的话
+                                            let token = '';
+                                            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+                                            if (tokenElement) {
+                                                token = tokenElement.value;
+                                            }
+                                            
+                                            // 发送AJAX请求到Json处理器
+                                            const requestOptions = {
+                                                method: 'POST',
+                                                body: formData
+                                            };
+                                            
+                                            // 只有当令牌存在时才添加到请求头
+                                            if (token) {
+                                                requestOptions.headers = {
+                                                    'RequestVerificationToken': token
+                                                };
+                                            }
+                                            
+                                            fetch('/Index?handler=Json', requestOptions)
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                // 隐藏加载指示器
+                                                loadingIndicator.style.display = 'none';
+                                                // 启用按钮
+                                                checkButton.disabled = false;
+                                                
+                                                if (data.success) {
+                                                    // 更新报告内容
+                                                    if (reportContainer) {
+                                                        reportContainer.innerHTML = data.reportHtml;
+                                                        reportContainer.style.display = 'block';
+                                                    }
+                                                } else {
+                                                    // 显示错误信息
+                                                    if (errorMessage) {
+                                                        errorMessage.textContent = data.error;
+                                                        errorMessage.style.display = 'block';
+                                                    }
+                                                }
+                                            })
+                                            .catch(error => {
+                                                // 处理请求错误
+                                                loadingIndicator.style.display = 'none';
+                                                checkButton.disabled = false;
+                                                if (errorMessage) {
+                                                    errorMessage.textContent = '请求失败: ' + error.message;
+                                                    errorMessage.style.display = 'block';
+                                                }
+                                            });
+                                        });
+                                    });
+                                </script>
                     </form>
+                    
+                    <!-- 错误消息容器 -->
+                    <div id="errorMessage" class="alert alert-danger mt-4" style="display: none;"></div>
+                    
+                    <!-- 报告容器 -->
+                    <div id="reportContainer" class="mt-5" style="display: none;">
+                        <!-- 报告内容将通过AJAX动态加载 -->
+                    </div>
                     
                     @if (!ModelState.IsValid)
                     {
