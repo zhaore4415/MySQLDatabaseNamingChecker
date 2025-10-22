@@ -35,7 +35,7 @@ DBCheckAI是一个专门用于检查MySQL数据库命名规范的智能工具，
 1. 克隆或下载项目代码
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/zhaore4415/MySQLDatabaseNamingChecker.git
 cd MySQLDatabaseNamingChecker
 ```
 
