@@ -165,29 +165,46 @@ namespace DBCheckAI.Pages
         private string GetDefaultNamingRules()
         { return @"## MySQL数据库命名规范
 
-✅ 表名规范：
-- 使用复数名词，如 users, orders
-- 使用小写 + 下划线：user_profile, order_item
-- 不允许使用大写字母或驼峰
-- 长度不超过64字符
+1. 表名和列名小写加下划线，如: subject_category表，parent_id列
 
-✅ 字段名规范：
-- 使用小写下划线命名法：user_id, create_time, total_amount
-- 主键必须叫 id
-- 外键必须以 _id 结尾，如 user_id, order_id
-- 创建时间字段叫 create_time，更新时间叫 update_time
-- 布尔字段用 is_xxx，如 is_active, is_deleted
+2. 所有字段不可为空，如：
+   - parent_id等id类默认值为0
+   - 字符串类默认值为空字符串("")
+   - 日期时间类默认值为1970-1
 
-❌ 禁止：
-- 使用拼音（如 yonghu）
-- 使用MySQL保留字（如 order, user, group 等）
-- 使用空格或特殊字符
-- 使用MySQL不支持的字符
+3. 其他类型视业务场景取一个安全值作为默认值，如余额为null时默认值是0
 
-✅ 索引命名规范：
-- 主键：PRIMARY KEY (id)
-- 普通索引：idx_字段名，如 idx_user_id
-- 唯一索引：uk_字段名，如 uk_email
-- 复合索引：idx_字段1_字段2，如 idx_user_id_status"; }
+4. 所有表需要完整审计属性，即创建人、创建时间、更新人、更新时间、软删除
+
+5. 除主键和唯一索引外，不可添加其他任何约束，唯一索引尽量只添加一组
+
+6. 唯一索引最好只包括一个列，如单列实在无法保证唯一性，最多只允许三个字段
+
+7. 唯一索引的字段不允许为null，null值会加大唯一性检查的复杂度，会进一步降低性能
+
+8. 审计属性规范：
+   # 新版审计属性
+   created_by
+   created_at
+   updated_by
+   updated_at
+   deleted_by
+   deleted_at
+   is_deleted
+
+   # dotnet老的审计属性
+   create_user_id
+   create_time
+   update_user_id
+   update_time
+   is_deleted
+
+9. 需要数据清洗的表，添加一个last_time字段，不会与update_time冲突
+
+10. 唯一索引需要包含软删除字段(is_deleted)，防止新增冲突
+
+11. 检查表名和字段名的单词是否有拼写错误
+
+12. 检查哪些表少了新版审计属性，如deleted_by、deleted_at"; }
     }
 }

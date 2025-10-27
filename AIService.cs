@@ -1,4 +1,4 @@
-using System.Text.Json;using System.Text.Json.Serialization;using Microsoft.Extensions.Options;using System.Net.Http.Headers;using System.Net.Http;using System.Text;using System.Threading.Tasks;
+using System.Text.Json;using System.Text.Json.Serialization;using Microsoft.Extensions.Options;using System.Net.Http.Headers;using System.Net.Http;using System.Text;using System.Threading.Tasks;using System.Collections.Generic;
 
 namespace DBCheckAI
 {
@@ -160,32 +160,57 @@ namespace DBCheckAI
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config.DeepSeekConfig.ApiKey);
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            // 构建请求体
-            var requestBody = new DeepSeekRequest
-            {
-                Model = _config.DeepSeekConfig.Model,
-                Messages = new List<DeepSeekMessage>
-                {
-                    new DeepSeekMessage
-                    {
-                        Role = "user",
-                        Content = prompt
+            // 构建请求体，使用匿名类型确保正确的JSON序列化
+            var requestBody = new {
+                model = _config.DeepSeekConfig.Model,
+                messages = new List<object> {
+                    new {
+                        role = "user",
+                        content = prompt
                     }
                 }
             };
 
-            var jsonContent = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+            // 添加try-catch以处理API错误
+            try {
+                // 使用JsonSerializerOptions确保正确序列化
+                var options = new JsonSerializerOptions {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                };
+                
+                var jsonContent = JsonSerializer.Serialize(requestBody, options);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-            // 发送请求
-            var response = await _httpClient.PostAsync(_config.DeepSeekConfig.BaseUrl, content);
-            response.EnsureSuccessStatusCode();
+                // 发送请求
+                var response = await _httpClient.PostAsync(_config.DeepSeekConfig.BaseUrl, content);
+                
+                // 检查响应状态
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"DeepSeek API调用失败: {response.StatusCode} - {errorContent}");
+                }
 
-            // 解析响应
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<DeepSeekResponse>(responseContent);
+                // 解析响应
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<DeepSeekResponse>(responseContent, options);
 
-            return result?.Choices?[0]?.Message?.Content?.Trim() ?? string.Empty;
+                if (result?.Choices == null || result.Choices.Count == 0 || result.Choices[0]?.Message?.Content == null)
+                {
+                    throw new Exception("DeepSeek API返回了空响应或格式不正确");
+                }
+
+                return result.Choices[0].Message.Content.Trim();
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new Exception($"网络请求异常: {ex.Message}");
+            }
+            catch (JsonException ex)
+            {
+                throw new Exception($"JSON解析错误: {ex.Message}");
+            }
         }
     }
 
