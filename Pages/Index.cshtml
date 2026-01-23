@@ -14,16 +14,55 @@
                 <div class="card-body">
                     <form method="post" class="space-y-4">
                         <div class="form-group">
-                            <label for="connectionString" class="form-label font-weight-bold">数据库连接字符串</label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="connectionString" 
-                                   name="connectionString" 
-                                   placeholder="Server=localhost;Database=test;Uid=root;Pwd=password;" 
-                                   required 
-                                   value="@Model.ConnectionString" />
-                            <div class="form-text text-muted">请输入您的MySQL数据库连接字符串</div>
+                            <label for="databaseType" class="form-label font-weight-bold">数据库类型</label>
+                            <select 
+                                class="form-control"
+                                id="databaseType"
+                                name="databaseType"
+                                asp-for="DatabaseType"
+                                asp-items="Model.DatabaseTypeOptions"
+                                required>
+                            </select>
+                            <div class="form-text text-muted">选择要连接的数据库类型</div>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="dbHost" class="form-label font-weight-bold">服务器地址 (Host)</label>
+                                    <input type="text" class="form-control" id="dbHost" name="dbHost" asp-for="DbHost" required />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="dbPort" class="form-label font-weight-bold">端口 (Port)</label>
+                                    <input type="text" class="form-control" id="dbPort" name="dbPort" asp-for="DbPort" placeholder="3306" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="dbName" class="form-label font-weight-bold">数据库名称 (Database)</label>
+                                    <input type="text" class="form-control" id="dbName" name="dbName" asp-for="DbName" required />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="dbUser" class="form-label font-weight-bold">用户名 (User)</label>
+                                    <input type="text" class="form-control" id="dbUser" name="dbUser" asp-for="DbUser" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dbPassword" class="form-label font-weight-bold">密码 (Password)</label>
+                            <input type="password" class="form-control" id="dbPassword" name="dbPassword" asp-for="DbPassword" required />
+                        </div>
+
+                        <!-- 隐藏的 connectionString 字段，用于保持兼容或调试 -->
+                        <input type="hidden" id="connectionString" name="connectionString" asp-for="ConnectionString" />
 
                         <div class="form-group">
                             <label for="aiProvider" class="form-label font-weight-bold">AI提供商</label>
@@ -69,6 +108,29 @@
                                         const reportContainer = document.getElementById('reportContainer');
                                         const errorMessage = document.getElementById('errorMessage');
                                         
+                                        // 切换 Placeholder
+                                        const databaseTypeSelect = document.getElementById('databaseType');
+                                        const dbPortInput = document.getElementById('dbPort');
+
+                                        if (databaseTypeSelect && dbPortInput) {
+                                            // 初始化端口占位符
+                                            updatePortPlaceholder(databaseTypeSelect.value);
+
+                                            databaseTypeSelect.addEventListener('change', function() {
+                                                updatePortPlaceholder(this.value);
+                                            });
+
+                                            function updatePortPlaceholder(type) {
+                                                if (type === 'MySQL') {
+                                                    dbPortInput.placeholder = '3306';
+                                                    if (!dbPortInput.value) dbPortInput.value = '3306';
+                                                } else if (type === 'PostgreSQL') {
+                                                    dbPortInput.placeholder = '5432';
+                                                    if (!dbPortInput.value || dbPortInput.value === '3306') dbPortInput.value = '5432';
+                                                }
+                                            }
+                                        }
+
                                         checkButton.addEventListener('click', function() {
                                             // 显示加载指示器
                                             loadingIndicator.style.display = 'block';
@@ -81,11 +143,18 @@
                                             // 获取表单数据 - 添加空值检查
                                             const formData = new FormData();
                                             
-                                            // 使用小写ID匹配HTML中的实际元素
-                                            const connectionStringElement = document.getElementById('connectionString');
-                                            if (connectionStringElement) {
-                                                formData.append('ConnectionString', connectionStringElement.value);
+                                            const databaseTypeElement = document.getElementById('databaseType');
+                                            if (databaseTypeElement) {
+                                                formData.append('DatabaseType', databaseTypeElement.value);
                                             }
+
+                                            // 获取各个连接字段
+                                            ['dbHost', 'dbPort', 'dbName', 'dbUser', 'dbPassword'].forEach(id => {
+                                                const element = document.getElementById(id);
+                                                if (element) {
+                                                    formData.append(id.charAt(0).toUpperCase() + id.slice(1), element.value);
+                                                }
+                                            });
                                             
                                             const namingRulesElement = document.getElementById('namingRules');
                                             if (namingRulesElement) {

@@ -8,7 +8,7 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
+
 *.sw?
 
 # Build 文件

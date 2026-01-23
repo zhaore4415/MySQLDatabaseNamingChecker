@@ -1,4 +1,5 @@
-﻿using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;
+using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -7,6 +8,12 @@ using System.Threading.Tasks;
 
 namespace DBCheckAI
 {
+    public enum DatabaseType
+    {
+        MySQL,
+        PostgreSQL
+    }
+
     /// <summary>
     /// 数据库对象模型，用于存储表、字段信息
     /// </summary>
@@ -42,6 +49,127 @@ namespace DBCheckAI
         {
             _aiService = aiService;
         }
+
+        /// <summary>
+        /// 根据数据库类型提取数据库结构
+        /// </summary>
+        public async Task<List<DbObject>> GetDatabaseSchemaAsync(string connectionString, DatabaseType dbType)
+        {
+            switch (dbType)
+            {
+                case DatabaseType.MySQL:
+                    return await GetMySQLDatabaseSchemaAsync(connectionString);
+                case DatabaseType.PostgreSQL:
+                    return await GetPostgreSQLDatabaseSchemaAsync(connectionString);
+                default:
+                    throw new NotSupportedException($"不支持的数据库类型: {dbType}");
+            }
+        }
+
+        /// <summary>
+        /// 从 PostgreSQL 数据库提取表和字段信息
+        /// </summary>
+        public async Task<List<DbObject>> GetPostgreSQLDatabaseSchemaAsync(string connectionString)
+        {
+            var result = new List<DbObject>();
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                await conn.OpenAsync();
+
+                // Step 1: 获取所有字段信息
+                string columnsSql = @"
+                    SELECT 
+                        table_name,
+                        column_name,
+                        data_type,
+                        udt_name,
+                        is_nullable,
+                        column_default
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                    ORDER BY table_name, ordinal_position";
+
+                // Step 2: 获取主键和外键信息
+                var keys = new Dictionary<(string TableName, string ColumnName), string>();
+                string keysSql = @"
+                    SELECT 
+                        tc.table_name, 
+                        kcu.column_name, 
+                        tc.constraint_type
+                    FROM 
+                        information_schema.table_constraints AS tc 
+                        JOIN information_schema.key_column_usage AS kcu
+                          ON tc.constraint_name = kcu.constraint_name
+                          AND tc.table_schema = kcu.table_schema
+                    WHERE tc.table_schema = 'public' 
+                      AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')";
+
+                using (var keyCmd = new NpgsqlCommand(keysSql, conn))
+                using (var keyReader = await keyCmd.ExecuteReaderAsync())
+                {
+                    while (await keyReader.ReadAsync())
+                    {
+                        var tableName = keyReader["table_name"].ToString();
+                        var columnName = keyReader["column_name"].ToString();
+                        var constraintType = keyReader["constraint_type"].ToString();
+                        
+                        if (tableName != null && columnName != null)
+                        {
+                            // 简单的优先级处理：如果是主键，覆盖可能的外键标记（虽然一般不会重叠）
+                            // 也可以扩展 DbObject 支持多种类型，但这里简化处理
+                            if (constraintType == "PRIMARY KEY")
+                            {
+                                keys[(tableName, columnName)] = "PRI";
+                            }
+                            else if (constraintType == "FOREIGN KEY")
+                            {
+                                if (!keys.ContainsKey((tableName, columnName)))
+                                {
+                                    keys[(tableName, columnName)] = "MUL"; // 借用 MySQL 的 MUL 标记外键
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 执行字段查询
+                using (var cmd = new NpgsqlCommand(columnsSql, conn))
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var tableName = reader["table_name"].ToString();
+                        var columnName = reader["column_name"].ToString();
+                        
+                        var keyType = "";
+                        var isForeignKey = false;
+
+                        if (keys.TryGetValue((tableName, columnName), out var kType))
+                        {
+                            if (kType == "PRI") keyType = "PRI";
+                            if (kType == "MUL") isForeignKey = true;
+                        }
+
+                        result.Add(new DbObject
+                        {
+                            TableName = tableName,
+                            ColumnName = columnName,
+                            DataType = reader["data_type"].ToString(),
+                            ColumnType = reader["udt_name"]?.ToString() ?? reader["data_type"].ToString(),
+                            IsNullable = reader["is_nullable"].ToString() == "YES",
+                            ColumnKey = keyType,
+                            ColumnDefault = reader["column_default"]?.ToString(),
+                            Extra = "", // PG 没有完全对应的 Extra 字段，可以留空
+                            IsForeignKey = isForeignKey
+                        });
+                    }
+                }
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// 从 MySQL 数据库提取表和字段信息（含完整列类型）
         /// </summary>
@@ -130,20 +258,21 @@ namespace DBCheckAI
         /// <param name="schema">数据库结构列表</param>
         /// <param name="namingRules">命名规则说明（可选）</param>
         /// <param name="aiProvider">AI提供商选择：simulation、tongyi、deepseek</param>
+        /// <param name="dbType">数据库类型：MySQL、PostgreSQL</param>
         /// <returns>Markdown 格式的检查报告</returns>
-        public async Task<string> CheckNamingWithRulesAsync(List<DbObject> schema, string namingRules = null, string aiProvider = "simulation")
+        public async Task<string> CheckNamingWithRulesAsync(List<DbObject> schema, string namingRules = null, string aiProvider = "simulation", DatabaseType dbType = DatabaseType.MySQL)
         {
             var rules = namingRules ?? "默认命名规范：小写下划线命名法（snake_case）";
             
             if (aiProvider == "simulation" || _aiService == null)
             {
                 // 使用模拟实现
-                return SimulateAIResponse(schema, rules);
+                return SimulateAIResponse(schema, rules, dbType);
             }
             else
             {
                 // 根据选择的提供商配置AI服务
-                var prompt = GenerateAIPrompt(schema, rules);
+                var prompt = GenerateAIPrompt(schema, rules, dbType);
                 var aiResponse = await _aiService.GetResponseAsync(prompt, aiProvider);
                 return aiResponse;
             }
@@ -152,10 +281,11 @@ namespace DBCheckAI
         /// <summary>
         /// 生成AI提示词
         /// </summary>
-        private string GenerateAIPrompt(List<DbObject> schema, string rules)
+        private string GenerateAIPrompt(List<DbObject> schema, string rules, DatabaseType dbType)
         {
             var prompt = new StringBuilder();
-            prompt.AppendLine("你是一名数据库命名规范专家，请根据提供的命名规则检查以下MySQL数据库结构，并生成详细的Markdown格式检查报告。");
+            string dbTypeName = dbType == DatabaseType.PostgreSQL ? "PostgreSQL" : "MySQL";
+            prompt.AppendLine($"你是一名数据库命名规范专家，请根据提供的命名规则检查以下{dbTypeName}数据库结构，并生成详细的Markdown格式检查报告。");
             prompt.AppendLine();
             prompt.AppendLine("## 命名规则");
             prompt.AppendLine(rules);
@@ -187,35 +317,49 @@ namespace DBCheckAI
         /// <summary>
         /// 模拟 AI 响应：生成命名规范检查报告
         /// </summary>
-        private string SimulateAIResponse(List<DbObject> schema, string rules)
+        private string SimulateAIResponse(List<DbObject> schema, string rules, DatabaseType dbType)
         {
             var issues = new List<(string Object, string CurrentName, string Problem, string Suggestion)>();
 
-            // MySQL 保留字（不区分大小写）
-            var reservedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            // 数据库保留字（不区分大小写）
+            var reservedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            
+            if (dbType == DatabaseType.MySQL)
             {
-                "ALL", "ALTER", "AND", "AS", "ASC", "AUTO_INCREMENT", "BETWEEN", "BIGINT",
-                "BINARY", "BOOLEAN", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHAR",
-                "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE",
-                "CREATE", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
-                "CURRENT_USER", "DATABASE", "DATEDIFF", "DATE_FORMAT", "DATE_SUB", "DECIMAL",
-                "DEFAULT", "DELETE", "DESC", "DESCRIBE", "DISTINCT", "DIV", "DOUBLE", "DROP",
-                "ELSE", "ELSEIF", "END", "ENGINE", "ESCAPE", "EXISTS", "EXIT", "EXPLAIN",
-                "FALSE", "FLOAT", "FOR", "FOREIGN", "FROM", "FULLTEXT", "GROUP", "HAVING",
-                "HIGH_PRIORITY", "HOUR", "IF", "IGNORE", "IN", "INDEX", "INNER", "INSERT",
-                "INT", "INTEGER", "INTERVAL", "INTO", "IS", "JOIN", "KEY", "KEYS", "KILL",
-                "LEFT", "LIKE", "LIMIT", "LOW_PRIORITY", "MATCH", "MEDIUMINT", "MOD", "MODIFY",
-                "NOT", "NO_WRITE_TO_BINLOG", "NULL", "ON", "OPTIMIZE", "OR", "ORDER", "OUTER",
-                "OVER", "PARTITION", "PRECISION", "PRIMARY", "PROCEDURE", "PURGE", "RANGE",
-                "READ", "REFERENCES", "REGEXP", "RENAME", "REPLACE", "REQUIRE", "RESTRICT",
-                "RETURN", "REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SELECT", "SET", "SHOW",
-                "SIGNAL", "SMALLINT", "SONAME", "SPATIAL", "SQL", "SQLEXCEPTION", "SQLSTATE",
-                "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "SSL",
-                "STARTING", "STRAIGHT_JOIN", "TABLE", "TERMINATED", "THEN", "TIME", "TIMESTAMP",
-                "TINYINT", "TO", "TRUNCATE", "TRUE", "UNION", "UNIQUE", "UNLOCK", "UPDATE",
-                "USAGE", "USE", "USER", "USING", "VALUE", "VALUES", "VARBINARY", "VARCHAR",
-                "VARCHARACTER", "VARYING", "VIEW", "WHEN", "WHERE", "WHILE", "WITH", "WRITE"
-            };
+                // MySQL 保留字
+                reservedWords.UnionWith(new[]
+                {
+                    "ALL", "ALTER", "AND", "AS", "ASC", "AUTO_INCREMENT", "BETWEEN", "BIGINT",
+                    "BINARY", "BOOLEAN", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHAR",
+                    "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE",
+                    "CREATE", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+                    "CURRENT_USER", "DATABASE", "DATEDIFF", "DATE_FORMAT", "DATE_SUB", "DECIMAL",
+                    "DEFAULT", "DELETE", "DESC", "DESCRIBE", "DISTINCT", "DIV", "DOUBLE", "DROP",
+                    "ELSE", "ELSEIF", "END", "ENGINE", "ESCAPE", "EXISTS", "EXIT", "EXPLAIN",
+                    "FALSE", "FLOAT", "FOR", "FOREIGN", "FROM", "FULLTEXT", "GROUP", "HAVING",
+                    "HIGH_PRIORITY", "HOUR", "IF", "IGNORE", "IN", "INDEX", "INNER", "INSERT",
+                    "INT", "INTEGER", "INTERVAL", "INTO", "IS", "JOIN", "KEY", "KEYS", "KILL",
+                    "LEFT", "LIKE", "LIMIT", "LOW_PRIORITY", "MATCH", "MEDIUMINT", "MOD", "MODIFY",
+                    "NOT", "NO_WRITE_TO_BINLOG", "NULL", "ON", "OPTIMIZE", "OR", "ORDER", "OUTER",
+                    "OVER", "PARTITION", "PRECISION", "PRIMARY", "PROCEDURE", "PURGE", "RANGE",
+                    "READ", "REFERENCES", "REGEXP", "RENAME", "REPLACE", "REQUIRE", "RESTRICT",
+                    "RETURN", "REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SELECT", "SET", "SHOW",
+                    "SIGNAL", "SMALLINT", "SONAME", "SPATIAL", "SQL", "SQLEXCEPTION", "SQLSTATE",
+                    "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "SSL",
+                    "STARTING", "STRAIGHT_JOIN", "TABLE", "TERMINATED", "THEN", "TIME", "TIMESTAMP",
+                    "TINYINT", "TO", "TRUNCATE", "TRUE", "UNION", "UNIQUE", "UNLOCK", "UPDATE",
+                    "USAGE", "USE", "USER", "USING", "VALUE", "VALUES", "VARBINARY", "VARCHAR",
+                    "VARCHARACTER", "VARYING", "VIEW", "WHEN", "WHERE", "WHILE", "WITH", "WRITE"
+                });
+            }
+            else
+            {
+                // PostgreSQL 保留字 (简化列表)
+                reservedWords.UnionWith(new[]
+                {
+                    "ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC", "AUTHORIZATION", "BINARY", "BOTH", "CASE", "CAST", "CHECK", "COLLATE", "COLLATION", "COLUMN", "CONCURRENTLY", "CONSTRAINT", "CREATE", "CROSS", "CURRENT_CATALOG", "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_SCHEMA", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "DEFAULT", "DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT", "FALSE", "FETCH", "FOR", "FOREIGN", "FREEZE", "FROM", "FULL", "GRANT", "GROUP", "HAVING", "ILIKE", "IN", "INITIALLY", "INNER", "INTERSECT", "INTO", "IS", "ISNULL", "JOIN", "LATERAL", "LEADING", "LEFT", "LIKE", "LIMIT", "LOCALTIME", "LOCALTIMESTAMP", "NATURAL", "NOT", "NOTNULL", "NULL", "OFFSET", "ON", "ONLY", "OR", "ORDER", "OUTER", "OVERLAPS", "PLACING", "PRIMARY", "REFERENCES", "RETURNING", "RIGHT", "SELECT", "SESSION_USER", "SIMILAR", "SOME", "SYMMETRIC", "TABLE", "THEN", "TO", "TRAILING", "TRUE", "UNION", "UNIQUE", "USER", "USING", "VARIADIC", "VERBOSE", "WHEN", "WHERE", "WINDOW", "WITH"
+                });
+            }
 
             // 新版审计属性
             var newAuditColumns = new HashSet<string> {
@@ -269,7 +413,7 @@ namespace DBCheckAI
 
                 if (reservedWords.Contains(tableName.ToUpper()))
                 {
-                    issues.Add((tableName, tableName, "表名使用了MySQL保留字", $"tbl_{expectedTable}"));
+                    issues.Add((tableName, tableName, "表名使用了保留字", $"tbl_{expectedTable}"));
                 }
 
                 // 12. ✅ 检查审计属性

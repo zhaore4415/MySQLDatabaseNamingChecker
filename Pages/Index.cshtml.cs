@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Markdig;
+using DBCheckAI;
 
 namespace DBCheckAI.Pages
 {
@@ -30,6 +31,26 @@ namespace DBCheckAI.Pages
         public string ConnectionString { get; set; }
 
         [BindProperty]
+        public string DbHost { get; set; } = "localhost";
+
+        [BindProperty]
+        public string DbPort { get; set; }
+
+        [BindProperty]
+        public string DbName { get; set; }
+
+        [BindProperty]
+        public string DbUser { get; set; }
+
+        [BindProperty]
+        public string DbPassword { get; set; }
+
+        [BindProperty]
+        public string DatabaseType { get; set; } = "MySQL";
+
+        public List<SelectListItem> DatabaseTypeOptions { get; set; }
+
+        [BindProperty]
         public string NamingRules { get; set; }
 
         public string DefaultNamingRules { get; set; }
@@ -49,25 +70,32 @@ namespace DBCheckAI.Pages
                 ConnectionString = "Server=localhost;Database=test;Uid=root;Pwd=password;";
             }
 
-            // 初始化AI提供商选项
+            // 初始化选项
+            InitializeOptions();
+        }
+
+        private void InitializeOptions()
+        {
             AIProviderOptions = new List<SelectListItem>
             {                new SelectListItem { Value = "simulation", Text = "模拟AI (无需API密钥)" },
                 new SelectListItem { Value = "tongyi", Text = "通义千问" },
                 new SelectListItem { Value = "deepseek", Text = "DeepSeek" }
+            };
+
+            DatabaseTypeOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "MySQL", Text = "MySQL" },
+                new SelectListItem { Value = "PostgreSQL", Text = "PostgreSQL" }
             };
         }
 
         // 处理传统表单提交
         public async Task<IActionResult> OnPostAsync()
         {
-            // 确保AIProviderOptions不为null，无论ModelState是否有效
-            if (AIProviderOptions == null || AIProviderOptions.Count == 0)
+            // 确保选项不为null
+            if (AIProviderOptions == null || AIProviderOptions.Count == 0 || DatabaseTypeOptions == null)
             {
-                AIProviderOptions = new List<SelectListItem>
-                {                    new SelectListItem { Value = "simulation", Text = "模拟AI (无需API密钥)" },
-                    new SelectListItem { Value = "tongyi", Text = "通义千问" },
-                    new SelectListItem { Value = "deepseek", Text = "DeepSeek" }
-                };
+                InitializeOptions();
             }
             
             // 验证表单数据
@@ -84,11 +112,27 @@ namespace DBCheckAI.Pages
                     NamingRules = DefaultNamingRules;
                 }
 
+                // 解析数据库类型
+                if (!Enum.TryParse<DatabaseType>(DatabaseType, out var dbType))
+                {
+                    dbType = DBCheckAI.DatabaseType.MySQL;
+                }
+
+                // 构建连接字符串
+                if (dbType == DBCheckAI.DatabaseType.MySQL)
+                {
+                    ConnectionString = $"Server={DbHost};Port={DbPort ?? "3306"};Database={DbName};Uid={DbUser};Pwd={DbPassword};";
+                }
+                else
+                {
+                    ConnectionString = $"Host={DbHost};Port={DbPort ?? "5432"};Database={DbName};Username={DbUser};Password={DbPassword};";
+                }
+
                 // 提取数据库架构
-                var schema = await _databaseService.GetMySQLDatabaseSchemaAsync(ConnectionString);
+                var schema = await _databaseService.GetDatabaseSchemaAsync(ConnectionString, dbType);
 
                 // 检查命名规则，传入AI提供商选项
-                ReportMarkdown = await _databaseService.CheckNamingWithRulesAsync(schema, NamingRules, AIProvider);
+                ReportMarkdown = await _databaseService.CheckNamingWithRulesAsync(schema, NamingRules, AIProvider, dbType);
 
                 // 转换Markdown为HTML
                 var pipeline = new MarkdownPipelineBuilder()
@@ -96,22 +140,18 @@ namespace DBCheckAI.Pages
                     .Build();
                 ReportHtml = Markdown.ToHtml(ReportMarkdown, pipeline);
 
-                // 重新初始化AI提供商选项，确保表单提交后不会丢失
-                AIProviderOptions = new List<SelectListItem>
-                {                    new SelectListItem { Value = "simulation", Text = "模拟AI (无需API密钥)" },
-                    new SelectListItem { Value = "tongyi", Text = "通义千问" },
-                    new SelectListItem { Value = "deepseek", Text = "DeepSeek" }
-                };
+                // 重新初始化选项，确保表单提交后不会丢失
+                InitializeOptions();
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, $"检查过程中出现错误: {ex.Message}");
             }
             
-            // 确保AIProviderOptions不为null
+            // 确保选项不为null
             if (AIProviderOptions == null)
             {
-                AIProviderOptions = new List<SelectListItem>();
+                InitializeOptions();
             }
             
             // 确保AIProvider有默认值
@@ -134,11 +174,27 @@ namespace DBCheckAI.Pages
                     NamingRules = DefaultNamingRules;
                 }
 
+                // 解析数据库类型
+                if (!Enum.TryParse<DatabaseType>(DatabaseType, out var dbType))
+                {
+                    dbType = DBCheckAI.DatabaseType.MySQL;
+                }
+
+                // 构建连接字符串
+                if (dbType == DBCheckAI.DatabaseType.MySQL)
+                {
+                    ConnectionString = $"Server={DbHost};Port={DbPort ?? "3306"};Database={DbName};Uid={DbUser};Pwd={DbPassword};";
+                }
+                else
+                {
+                    ConnectionString = $"Host={DbHost};Port={DbPort ?? "5432"};Database={DbName};Username={DbUser};Password={DbPassword};";
+                }
+
                 // 提取数据库架构
-                var schema = await _databaseService.GetMySQLDatabaseSchemaAsync(ConnectionString);
+                var schema = await _databaseService.GetDatabaseSchemaAsync(ConnectionString, dbType);
 
                 // 检查命名规则，传入AI提供商选项
-                ReportMarkdown = await _databaseService.CheckNamingWithRulesAsync(schema, NamingRules, AIProvider);
+                ReportMarkdown = await _databaseService.CheckNamingWithRulesAsync(schema, NamingRules, AIProvider, dbType);
 
                 // 转换Markdown为HTML
                 var pipeline = new MarkdownPipelineBuilder()
@@ -163,7 +219,7 @@ namespace DBCheckAI.Pages
         }
 
         private string GetDefaultNamingRules()
-        { return @"## MySQL数据库命名规范
+        { return @"## 数据库命名规范
 
 1. 表名和列名小写加下划线，如: subject_category表，parent_id列
 
