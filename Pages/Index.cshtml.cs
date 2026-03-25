@@ -31,7 +31,7 @@ namespace DBCheckAI.Pages
         public string ConnectionString { get; set; }
 
         [BindProperty]
-        public string DbHost { get; set; } = "localhost";
+        public string DbHost { get; set; } = "common-db.dev.sjzy.local";
 
         [BindProperty]
         public string DbPort { get; set; }
@@ -67,7 +67,7 @@ namespace DBCheckAI.Pages
             // 如果是首次访问，设置默认的连接字符串占位符
             if (string.IsNullOrEmpty(ConnectionString))
             {
-                ConnectionString = "Server=localhost;Database=test;Uid=root;Pwd=password;";
+                ConnectionString = "Server=common-db.dev.sjzy.local;Database=test;Uid=sjzy_dev_user;Pwd=password;";
             }
 
             // 初始化选项
@@ -219,48 +219,24 @@ namespace DBCheckAI.Pages
         }
 
         private string GetDefaultNamingRules()
-        { return @"## 数据库命名规范
+        {
+            return @"## 数据库命名规范 (12项强制规范)
 
-1. 表名和列名小写加下划线，如: subject_category表，parent_id列
-
-2. 所有字段不可为空，如：
-   - parent_id等id类默认值为0
-   - 字符串类默认值为空字符串("")
-   - 日期时间类默认值为1970-1
-
-3. 其他类型视业务场景取一个安全值作为默认值，如余额为null时默认值是0
-
-4. 所有表需要完整审计属性，即创建人、创建时间、更新人、更新时间、软删除
-
-5. 除主键和唯一索引外，不可添加其他任何约束，唯一索引尽量只添加一组
-
-6. 唯一索引最好只包括一个列，如单列实在无法保证唯一性，最多只允许三个字段
-
-7. 唯一索引的字段不允许为null，null值会加大唯一性检查的复杂度，会进一步降低性能
-
-8. 审计属性规范：
-   # 新版审计属性
-   created_by
-   created_at
-   updated_by
-   updated_at
-   deleted_by
-   deleted_at
-   is_deleted
-
-   # dotnet老的审计属性
-   create_user_id
-   create_time
-   update_user_id
-   update_time
-   is_deleted
-
-9. 需要数据清洗的表，添加一个last_time字段，不会与update_time冲突
-
-10. 唯一索引需要包含软删除字段(is_deleted)，防止新增冲突
-
-11. 检查表名和字段名的单词是否有拼写错误
-
-12. 检查哪些表少了新版审计属性，如deleted_by、deleted_at"; }
+1. 表名和列名小写加下划线, 如: subject_category表, parent_id例.
+2. 所有字段不可为空, 如parent_id等id类默认值为0, 字符串类默认值为空字符串(""""), 日期时间类默认值为1970-1-1.
+3. 其他类型视业务场景取一个安全值作为默认值, 如余额为空时默认值是0.
+4. 所有表需要完整审计属性, 即创建人(created_by), 创建时间(created_at), 更新人(updated_by), 更新时间(updated_at), 软删除(deleted_at).
+5. 除主键和唯一索引外, 不可添加其他任何约束, 唯一索引尽量只添加一组.
+6. 唯一索引最好只包括一个列, 如单列实在无法保证唯一性, 最多只允许三个字段.
+7. 唯一索引的字段不允许为null, null值会加大唯一性检查的复杂度, 会进一步降低性能.
+8. 审计属性命名规范:
+   - created_by, created_at
+   - updated_by, updated_at
+   - deleted_by, deleted_at (移除旧版 is_deleted)
+9. 需要数据清洗的表, 建议添加一个 last_time 字段, 不会与 update_time 冲突.
+10. 唯一索引必须包含软删除字段 (deleted_at), 防止新增冲突.
+11. 检查表名和字段名的单词是否有拼写错误.
+12. 检查哪些表少了新版审计属性, 重点检查 deleted_at 及包含在唯一索引中的逻辑.";
+        }
     }
 }
