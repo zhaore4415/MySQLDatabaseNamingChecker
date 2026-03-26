@@ -220,7 +220,7 @@ namespace DBCheckAI.Pages
 
         private string GetDefaultNamingRules()
         {
-            return @"## 数据库命名规范 (12项强制规范)
+            return @"## 数据库命名规范 (13项强制规范)
 
 1. 表名和列名小写加下划线, 如: subject_category表, parent_id例.
 2. 所有字段不可为空, 如parent_id等id类默认值为0, 字符串类默认值为空字符串(""""), 日期时间类默认值为1970-1-1.
@@ -236,7 +236,8 @@ namespace DBCheckAI.Pages
 9. 需要数据清洗的表, 建议添加一个 last_time 字段, 不会与 update_time 冲突.
 10. 唯一索引必须包含软删除字段 (deleted_at), 防止新增冲突.
 11. 检查表名和字段名的单词是否有拼写错误.
-12. 检查哪些表少了新版审计属性, 重点检查 deleted_at 及包含在唯一索引中的逻辑.";
+12. 检查哪些表少了新版审计属性, 重点检查 deleted_at 及包含在唯一索引中的逻辑.
+13. 冗余字段命名规范：冗余字段需加特殊标识 _dup（duplicate 的缩写），如 goods_name_dup、user_name_dup，明确区分原始字段和冗余字段。";
         }
     }
 }

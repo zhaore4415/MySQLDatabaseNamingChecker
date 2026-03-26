@@ -385,6 +385,22 @@ namespace DBCheckAI
                     {
                         issues.Add((fullCol, colName, "缺少默认值", "建议根据业务设置安全默认值"));
                     }
+
+                    // 13. 冗余字段规范检查
+                    // 如果存在与之对应的 _id 字段（例如有 user_id，同时有 user_name，且当前表不是 user 表），则认为 user_name 是冗余字段
+                    if (!colLower.EndsWith("_dup") && (colLower.EndsWith("_name") || colLower.EndsWith("_title") || colLower.EndsWith("_desc")))
+                    {
+                        var prefix = colLower.Substring(0, colLower.LastIndexOf('_'));
+                        var idFieldName = prefix + "_id";
+                        
+                        // 判断是否为实体的主表（简单判断：表名包含该前缀结尾）
+                        bool isEntitySelf = expectedTable == prefix || expectedTable == "t_" + prefix || expectedTable.EndsWith("_" + prefix);
+
+                        if (!isEntitySelf && tableColumns.Contains(idFieldName))
+                        {
+                            issues.Add((fullCol, colName, $"疑似冗余字段 (和 {idFieldName} 对应)，需加 _dup 标识", $"{colName}_dup"));
+                        }
+                    }
                 }
 
                 // 5/6/7/10: 索引深度检查 (使用 metadata)
