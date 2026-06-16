@@ -1,0 +1,212 @@
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Markdig;
+
+namespace DBCheckAI.Pages
+{
+    public class DatabaseCheckModel : PageModel
+    {
+        private readonly DatabaseService _databaseService;
+
+        public DatabaseCheckModel(DatabaseService databaseService)
+        {
+            _databaseService = databaseService;
+            ConnectionString = string.Empty;
+            DefaultNamingRules = GetDefaultNamingRules();
+            NamingRules = DefaultNamingRules;
+            AIProviderOptions = new List<SelectListItem>();
+            ReportMarkdown = string.Empty;
+            ReportHtml = string.Empty;
+        }
+
+        [BindProperty]
+        public string ConnectionString { get; set; }
+
+        [BindProperty]
+        public string DbHost { get; set; } = "common-db.dev.sjzy.local";
+
+        [BindProperty]
+        public string DbPort { get; set; }
+
+        [BindProperty]
+        public string DbName { get; set; }
+
+        [BindProperty]
+        public string DbUser { get; set; }
+
+        [BindProperty]
+        public string DbPassword { get; set; }
+
+        [BindProperty]
+        public string DatabaseType { get; set; } = "MySQL";
+
+        public List<SelectListItem> DatabaseTypeOptions { get; set; }
+
+        [BindProperty]
+        public string NamingRules { get; set; }
+
+        public string DefaultNamingRules { get; set; }
+        public string ReportMarkdown { get; set; }
+        public string ReportHtml { get; set; }
+
+        [BindProperty]
+        public string AIProvider { get; set; } = "simulation";
+
+        public List<SelectListItem> AIProviderOptions { get; set; }
+
+        public void OnGet()
+        {
+            if (string.IsNullOrEmpty(ConnectionString))
+            {
+                ConnectionString = "Server=common-db.dev.sjzy.local;Database=test;Uid=sjzy_dev_user;Pwd=password;";
+            }
+            InitializeOptions();
+        }
+
+        private void InitializeOptions()
+        {
+            AIProviderOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "simulation", Text = "模拟AI (无需API密钥)" },
+                new SelectListItem { Value = "tongyi", Text = "通义千问" },
+                new SelectListItem { Value = "deepseek", Text = "DeepSeek" }
+            };
+
+            DatabaseTypeOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "MySQL", Text = "MySQL" },
+                new SelectListItem { Value = "PostgreSQL", Text = "PostgreSQL" }
+            };
+        }
+
+        public async Task<IActionResult> OnPostAsync()
+        {
+            if (AIProviderOptions == null || AIProviderOptions.Count == 0 || DatabaseTypeOptions == null)
+            {
+                InitializeOptions();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return Page();
+            }
+
+            try
+            {
+                if (string.IsNullOrEmpty(NamingRules))
+                {
+                    NamingRules = DefaultNamingRules;
+                }
+
+                if (!Enum.TryParse<DBCheckAI.DatabaseType>(DatabaseType, out var dbType))
+                {
+                    dbType = DBCheckAI.DatabaseType.MySQL;
+                }
+
+                if (dbType == DBCheckAI.DatabaseType.MySQL)
+                {
+                    ConnectionString = $"Server={DbHost};Port={DbPort ?? "3306"};Database={DbName};Uid={DbUser};Pwd={DbPassword};";
+                }
+                else
+                {
+                    ConnectionString = $"Host={DbHost};Port={DbPort ?? "5432"};Database={DbName};Username={DbUser};Password={DbPassword};";
+                }
+
+                var schema = await _databaseService.GetDatabaseSchemaAsync(ConnectionString, dbType);
+                ReportMarkdown = await _databaseService.CheckNamingWithRulesAsync(schema, NamingRules, AIProvider, dbType);
+
+                var pipeline = new MarkdownPipelineBuilder()
+                    .UseAdvancedExtensions()
+                    .Build();
+                ReportHtml = Markdown.ToHtml(ReportMarkdown, pipeline);
+
+                InitializeOptions();
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, $"检查过程中出现错误: {ex.Message}");
+            }
+
+            if (AIProviderOptions == null)
+            {
+                InitializeOptions();
+            }
+
+            if (string.IsNullOrEmpty(AIProvider))
+            {
+                AIProvider = "simulation";
+            }
+
+            return Page();
+        }
+
+        public async Task<JsonResult> OnPostJsonAsync()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(NamingRules))
+                {
+                    NamingRules = DefaultNamingRules;
+                }
+
+                if (!Enum.TryParse<DBCheckAI.DatabaseType>(DatabaseType, out var dbType))
+                {
+                    dbType = DBCheckAI.DatabaseType.MySQL;
+                }
+
+                if (dbType == DBCheckAI.DatabaseType.MySQL)
+                {
+                    ConnectionString = $"Server={DbHost};Port={DbPort ?? "3306"};Database={DbName};Uid={DbUser};Pwd={DbPassword};";
+                }
+                else
+                {
+                    ConnectionString = $"Host={DbHost};Port={DbPort ?? "5432"};Database={DbName};Username={DbUser};Password={DbPassword};";
+                }
+
+                var schema = await _databaseService.GetDatabaseSchemaAsync(ConnectionString, dbType);
+                ReportMarkdown = await _databaseService.CheckNamingWithRulesAsync(schema, NamingRules, AIProvider, dbType);
+
+                var pipeline = new MarkdownPipelineBuilder()
+                    .UseAdvancedExtensions()
+                    .Build();
+                ReportHtml = Markdown.ToHtml(ReportMarkdown, pipeline);
+
+                return new JsonResult(new {
+                    success = true,
+                    reportHtml = ReportHtml
+                });
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new {
+                    success = false,
+                    error = $"检查过程中出现错误: {ex.Message}"
+                });
+            }
+        }
+
+        private string GetDefaultNamingRules()
+        {
+            return @"## 数据库命名规范 (13项强制规范)
+
+1. 表名和列名小写加下划线, 如: subject_category表, parent_id例.
+2. 所有字段不可为空, 如parent_id等id类默认值为0, 字符串类默认值为空字符串(""), 日期时间类默认值为1970-1-1.
+3. 其他类型视业务场景取一个安全值作为默认值, 如余额为空时默认值是0.
+4. 所有表需要完整审计属性, 即创建人(created_by), 创建时间(created_at), 更新人(updated_by), 更新时间(updated_at), 软删除(deleted_at).
+5. 除主键和唯一索引外, 不可添加其他任何约束, 唯一索引尽量只添加一组.
+6. 唯一索引最好只包括一个列, 如单列实在无法保证唯一性, 最多只允许三个字段.
+7. 唯一索引的字段不允许为null, null值会加大唯一性检查的复杂度, 会进一步降低性能.
+8. 审计属性命名规范:
+   - created_by, created_at
+   - updated_by, updated_at
+   - deleted_by, deleted_at (移除旧版 is_deleted)
+9. 需要数据清洗的表, 建议添加一个 last_time 字段, 不会与 update_time 冲突.
+10. 唯一索引必须包含软删除字段 (deleted_at), 防止新增冲突.
+11. 检查表名和字段名的单词是否有拼写错误.
+12. 检查哪些表少了新版审计属性, 重点检查 deleted_at 及包含在唯一索引中的逻辑.
+13. 冗余字段命名规范：冗余字段需加特殊标识 _dup（duplicate 的缩写），如 goods_name_dup、user_name_dup，明确区分原始字段和冗余字段。";
+        }
+    }
+}

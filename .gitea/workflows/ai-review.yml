@@ -1,0 +1,95 @@
+name: AI Code & SQL Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  ai-review:
+    runs-on: linux_amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 1. 提取本次 PR 的变更文件（仅 .cs 和 .sql）
+      - name: Prepare changed files
+        id: changes
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(cs|sql)$' > changed_files.txt || true
+          if [ ! -s changed_files.txt ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No .cs or .sql files changed, skipping AI review."
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 2. 读取文件内容并打包成 JSON
+      - name: Build review payload
+        if: steps.changes.outputs.has_changes == 'true'
+        id: payload
+        run: |
+          FILES_JSON="["
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              # 转义双引号和反斜杠，换行转空格，避免 JSON 解析失败
+              CONTENT=$(cat "$file" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ' | sed 's/  */ /g')
+              FILES_JSON="${FILES_JSON}{\"path\":\"$file\",\"content\":\"$CONTENT\",\"change_type\":\"modified\"},"
+            fi
+          done < changed_files.txt
+          FILES_JSON=$(echo "$FILES_JSON" | sed 's/,$//')
+          FILES_JSON="${FILES_JSON}]"
+
+          # 构建完整请求体
+          echo "{\"type\":\"code\",\"repo\":\"${{ github.repository }}\",\"pr_number\":${{ github.event.number }},\"files\":$FILES_JSON}" > request.json
+          echo "payload_file=request.json" >> $GITHUB_OUTPUT
+
+      # 3. 调用 AI Review API
+      - name: Call AI Review API
+        if: steps.changes.outputs.has_changes == 'true'
+        id: ai_call
+        run: |
+          RESPONSE=$(curl -s -X POST "${{ secrets.AI_REVIEW_API_URL }}/api/review" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.AI_REVIEW_TOKEN }}" \
+            -d @${{ steps.payload.outputs.payload_file }} \
+            --max-time 300)
+          echo "result=$RESPONSE" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+      # 4. 打印结果到 CI 日志（并设置检查状态）
+      - name: Report results
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          SCORE=$(echo '${{ steps.ai_call.outputs.result }}' | jq -r '.score // "N/A"')
+          ISSUES=$(echo '${{ steps.ai_call.outputs.result }}' | jq -r '.total_issues // 0')
+          echo "========================================"
+          echo "AI 审查评分: ${SCORE}/100"
+          echo "发现问题: ${ISSUES} 个"
+          echo "========================================"
+
+          # 合并门禁：代码已保留，但默认不启用（直接 exit 0）
+          # 如需强制，取消下面注释并改为 exit 1
+          # if [ "$SCORE" != "N/A" ] && [ "$SCORE" -lt 60 ]; then
+          #   echo "评分低于 60，标记失败"
+          #   exit 1
+          # fi
+          exit 0
+
+      # 5. 可选：将结果评论到 PR（需要 Gitea API Token）
+      - name: Comment PR
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const result = JSON.parse('${{ steps.ai_call.outputs.result }}');
+            const markdown = result.report_markdown || 'AI 检查完成';
+            const score = result.score ?? 'N/A';
+            const body = `## AI 代码审查报告\n\n**评分**: ${score}/100\n**问题数**: ${result.total_issues ?? 0}\n\n${markdown}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

@@ -1,320 +1,75 @@
 @page
 @model IndexModel
-@{    
-    ViewData["Title"] = "MySQL数据库命名规范检查工具";
+@{
+    ViewData["Title"] = "首页";
+    ViewData["ActiveMenu"] = "Home";
 }
 
 <div class="container mt-5">
-    <div class="row justify-content-center">
+    <!-- 欢迎区域 -->
+    <div class="row mb-5">
+        <div class="col-md-12 text-center">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-robot text-primary"></i> AI数据库检查平台
+            </h1>
+            <p class="lead text-muted">
+                基于人工智能的数据库规范检查工具，支持 MySQL/PostgreSQL 命名规范、审计字段、索引合理性检查
+            </p>
+        </div>
+    </div>
+
+    <!-- 功能卡片入口 -->
+    <div class="row mb-5 justify-content-center">
+        <div class="col-md-6 mb-4">
+            <a href="/DatabaseCheck" class="card feature-card h-100 border-0 shadow">
+                <div class="card-body text-center p-5">
+                    <div class="feature-icon text-primary">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h4 class="card-title">数据库检查</h4>
+                    <p class="card-text text-muted">
+                        检查表名/字段命名规范、审计字段完整性、索引合理性
+                    </p>
+                    <span class="btn btn-outline-primary mt-3">
+                        <i class="fas fa-arrow-right me-2"></i>开始使用
+                    </span>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- 快速开始指南 -->
+    <div class="row">
         <div class="col-md-12">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white text-center">
-                    <h2 class="mb-0">🔍 MySQL数据库命名规范检查工具</h2>
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book me-2"></i>快速开始
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" class="space-y-4">
-                        <div class="form-group">
-                            <label for="databaseType" class="form-label font-weight-bold">数据库类型</label>
-                            <select 
-                                class="form-control"
-                                id="databaseType"
-                                name="databaseType"
-                                asp-for="DatabaseType"
-                                asp-items="Model.DatabaseTypeOptions"
-                                required>
-                            </select>
-                            <div class="form-text text-muted">选择要连接的数据库类型</div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-database text-primary me-2"></i>数据库检查</h6>
+                            <ol class="text-muted small">
+                                <li>选择数据库类型（MySQL/PostgreSQL）</li>
+                                <li>填写数据库连接信息</li>
+                                <li>选择 AI 提供商</li>
+                                <li>点击开始检查</li>
+                            </ol>
                         </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="dbHost" class="form-label font-weight-bold">服务器地址 (Host)</label>
-                                    <input type="text" class="form-control" id="dbHost" name="dbHost" asp-for="DbHost" required />
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="dbPort" class="form-label font-weight-bold">端口 (Port)</label>
-                                    <input type="text" class="form-control" id="dbPort" name="dbPort" asp-for="DbPort" placeholder="3306" />
-                                </div>
-                            </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cog text-info me-2"></i>CI/CD 集成</h6>
+                            <ol class="text-muted small">
+                                <li>在 Gitea 仓库添加 Actions Workflow</li>
+                                <li>配置 API 地址和 Token</li>
+                                <li>PR 自动触发代码/SQL 检查</li>
+                                <li>结果输出到 CI 日志</li>
+                            </ol>
                         </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="dbName" class="form-label font-weight-bold">数据库名称 (Database)</label>
-                                    <input type="text" class="form-control" id="dbName" name="dbName" asp-for="DbName" required />
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="dbUser" class="form-label font-weight-bold">用户名 (User)</label>
-                                    <input type="text" class="form-control" id="dbUser" name="dbUser" asp-for="DbUser" required />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="dbPassword" class="form-label font-weight-bold">密码 (Password)</label>
-                            <input type="password" class="form-control" id="dbPassword" name="dbPassword" asp-for="DbPassword" required />
-                        </div>
-
-                        <!-- 隐藏的 connectionString 字段，用于保持兼容或调试 -->
-                        <input type="hidden" id="connectionString" name="connectionString" asp-for="ConnectionString" />
-
-                        <div class="form-group">
-                            <label for="aiProvider" class="form-label font-weight-bold">AI提供商</label>
-                            <select 
-                                class="form-control"
-                                id="aiProvider"
-                                name="aiProvider"
-                                asp-for="AIProvider"
-                                asp-items="Model.AIProviderOptions"
-                                required>
-                            </select>
-                            <div class="form-text text-muted">选择使用哪种AI服务进行命名规范检查</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="namingRules" class="form-label font-weight-bold">命名规范规则</label>
-                            <textarea 
-                                class="form-control" 
-                                id="namingRules" 
-                                name="namingRules" 
-                                rows="10" 
-                                required>
-@Model.NamingRules</textarea>
-                            <div class="form-text text-muted">可以自定义命名规范规则</div>
-                        </div>
-
-                        <button type="button" id="checkButton" class="btn btn-primary w-100 py-2">
-                                    <i class="fas fa-check-circle"></i> 开始检查
-                                </button>
-                                
-                                <!-- 加载状态指示器 -->
-                                <div id="loadingIndicator" class="text-center mt-3" style="display: none;">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="sr-only">处理中...</span>
-                                    </div>
-                                    <p class="mt-2">正在分析数据库命名规范，请稍候...</p>
-                                </div>
-                                
-                                <script>
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        const checkButton = document.getElementById('checkButton');
-                                        const loadingIndicator = document.getElementById('loadingIndicator');
-                                        const reportContainer = document.getElementById('reportContainer');
-                                        const errorMessage = document.getElementById('errorMessage');
-                                        
-                                        // 切换 Placeholder
-                                        const databaseTypeSelect = document.getElementById('databaseType');
-                                        const dbPortInput = document.getElementById('dbPort');
-
-                                        if (databaseTypeSelect && dbPortInput) {
-                                            // 初始化端口占位符
-                                            updatePortPlaceholder(databaseTypeSelect.value);
-
-                                            databaseTypeSelect.addEventListener('change', function() {
-                                                updatePortPlaceholder(this.value);
-                                            });
-
-                                            function updatePortPlaceholder(type) {
-                                                if (type === 'MySQL') {
-                                                    dbPortInput.placeholder = '3306';
-                                                    if (!dbPortInput.value) dbPortInput.value = '3306';
-                                                } else if (type === 'PostgreSQL') {
-                                                    dbPortInput.placeholder = '5432';
-                                                    if (!dbPortInput.value || dbPortInput.value === '3306') dbPortInput.value = '5432';
-                                                }
-                                            }
-                                        }
-
-                                        checkButton.addEventListener('click', function() {
-                                            // 显示加载指示器
-                                            loadingIndicator.style.display = 'block';
-                                            // 禁用按钮
-                                            checkButton.disabled = true;
-                                            // 隐藏之前的报告和错误信息
-                                            if (reportContainer) reportContainer.style.display = 'none';
-                                            if (errorMessage) errorMessage.style.display = 'none';
-                                            
-                                            // 获取表单数据 - 添加空值检查
-                                            const formData = new FormData();
-                                            
-                                            const databaseTypeElement = document.getElementById('databaseType');
-                                            if (databaseTypeElement) {
-                                                formData.append('DatabaseType', databaseTypeElement.value);
-                                            }
-
-                                            // 获取各个连接字段
-                                            ['dbHost', 'dbPort', 'dbName', 'dbUser', 'dbPassword'].forEach(id => {
-                                                const element = document.getElementById(id);
-                                                if (element) {
-                                                    formData.append(id.charAt(0).toUpperCase() + id.slice(1), element.value);
-                                                }
-                                            });
-                                            
-                                            const namingRulesElement = document.getElementById('namingRules');
-                                            if (namingRulesElement) {
-                                                formData.append('NamingRules', namingRulesElement.value);
-                                            }
-                                            
-                                            const aiProviderElement = document.getElementById('aiProvider');
-                                            if (aiProviderElement) {
-                                                formData.append('AIProvider', aiProviderElement.value);
-                                            }
-                                            
-                                            // 获取验证令牌，如果存在的话
-                                            let token = '';
-                                            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-                                            if (tokenElement) {
-                                                token = tokenElement.value;
-                                            }
-                                            
-                                            // 发送AJAX请求到Json处理器
-                                            const requestOptions = {
-                                                method: 'POST',
-                                                body: formData
-                                            };
-                                            
-                                            // 只有当令牌存在时才添加到请求头
-                                            if (token) {
-                                                requestOptions.headers = {
-                                                    'RequestVerificationToken': token
-                                                };
-                                            }
-                                            
-                                            fetch('/Index?handler=Json', requestOptions)
-                                            .then(response => response.json())
-                                            .then(data => {
-                                                // 隐藏加载指示器
-                                                loadingIndicator.style.display = 'none';
-                                                // 启用按钮
-                                                checkButton.disabled = false;
-                                                
-                                                if (data.success) {
-                                                    // 更新报告内容
-                                                    if (reportContainer) {
-                                                        reportContainer.innerHTML = data.reportHtml;
-                                                        reportContainer.style.display = 'block';
-                                                    }
-                                                } else {
-                                                    // 显示错误信息
-                                                    if (errorMessage) {
-                                                        errorMessage.textContent = data.error;
-                                                        errorMessage.style.display = 'block';
-                                                    }
-                                                }
-                                            })
-                                            .catch(error => {
-                                                // 处理请求错误
-                                                loadingIndicator.style.display = 'none';
-                                                checkButton.disabled = false;
-                                                if (errorMessage) {
-                                                    errorMessage.textContent = '请求失败: ' + error.message;
-                                                    errorMessage.style.display = 'block';
-                                                }
-                                            });
-                                        });
-                                    });
-                                </script>
-                    </form>
-                    
-                    <!-- 错误消息容器 -->
-                    <div id="errorMessage" class="alert alert-danger mt-4" style="display: none;"></div>
-                    
-                    <!-- 报告容器 -->
-                    <div id="reportContainer" class="mt-5" style="display: none;">
-                        <!-- 报告内容将通过AJAX动态加载 -->
                     </div>
-                    
-                    @if (!ModelState.IsValid)
-                    {
-                        <div class="mt-3 alert alert-danger">
-                            @Html.ValidationSummary()
-                        </div>
-                    }
                 </div>
             </div>
-
-            @if (!string.IsNullOrEmpty(Model.ReportHtml))
-            {
-                <div class="mt-5 card shadow-lg">
-                    <div class="card-header bg-success text-white">
-                        <h3 class="mb-0">📊 检查结果报告</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="overflow-auto" style="max-height: 600px;">
-                            @Html.Raw(Model.ReportHtml)
-                        </div>
-                        <div class="mt-4 d-flex justify-content-between">
-                            <a href="javascript:void(0)" onclick="window.print()" class="btn btn-outline-secondary">
-                                <i class="fas fa-print"></i> 打印报告
-                            </a>
-                            <a href="data:text/markdown;charset=utf-8,%E2%80%8B@Model.ReportMarkdown" 
-                               download="DatabaseNamingReport_@(DateTime.Now.ToString("yyyyMMdd_HHmmss")).md" 
-                               class="btn btn-outline-primary">
-                                <i class="fas fa-download"></i> 下载Markdown报告
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            }
         </div>
     </div>
 </div>
-
-@section Scripts {
-    <style>
-        .markdown-body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            word-wrap: break-word;
-        }
-        
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-            border-bottom: 1px solid #eaecef;
-            padding-bottom: 0.3em;
-        }
-        
-        .markdown-body pre {
-            background-color: #f6f8fa;
-            border-radius: 3px;
-            padding: 16px;
-            overflow: auto;
-            font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
-            font-size: 14px;
-        }
-        
-        .markdown-body code {
-            font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
-            background-color: #f3f4f6;
-            border-radius: 3px;
-            padding: 0.2em 0.4em;
-            font-size: 85%;
-        }
-        
-        .markdown-body table {
-            border-collapse: collapse;
-            width: 100%;
-            margin-bottom: 16px;
-        }
-        
-        .markdown-body table th, .markdown-body table td {
-            border: 1px solid #dfe2e5;
-            padding: 6px 13px;
-        }
-        
-        .markdown-body table tr {
-            background-color: #fff;
-            border-top: 1px solid #c6cbd1;
-        }
-        
-        .markdown-body table tr:nth-child(2n) {
-            background-color: #f6f8fa;
-        }
-    </style>
-}

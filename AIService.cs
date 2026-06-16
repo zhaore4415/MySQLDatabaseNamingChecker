@@ -5,6 +5,7 @@ namespace DBCheckAI
     public class AIConfig
     {
         public string? Provider { get; set; } = "tongyi"; // 默认使用通义千问
+        public string? ApiToken { get; set; } = string.Empty; // 外部 API 调用鉴权令牌
         public TongyiConfig? TongyiConfig { get; set; } = new TongyiConfig();
         public DeepSeekConfig? DeepSeekConfig { get; set; } = new DeepSeekConfig();
     }

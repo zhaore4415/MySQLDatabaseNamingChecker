@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - MySQL数据库命名规范检查工具</title>
+    <title>@ViewData["Title"] - AI代码检查平台</title>
     <link href="/css/bootstrap.min.css" rel="stylesheet" />
     <!-- 完全使用CDN版本的Font Awesome，不使用本地文件 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -14,6 +14,11 @@
         }
         .card {
             border-radius: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
         .card-header {
             border-top-left-radius: 10px;
@@ -27,6 +32,40 @@
             background-color: #0056b3;
             border-color: #0056b3;
         }
+        .navbar-nav .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: color 0.2s;
+        }
+        .navbar-nav .nav-link:hover {
+            color: #fff !important;
+        }
+        .navbar-nav .nav-link.active {
+            color: #fff !important;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+        .feature-card {
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        .feature-card:hover {
+            color: inherit;
+        }
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -34,8 +73,25 @@
         <nav class="navbar navbar-expand-sm navbar-dark bg-primary">
             <div class="container">
                 <a class="navbar-brand" href="/">
-                    <i class="fas fa-database mr-2"></i>DB命名规范检查工具
+                    <i class="fas fa-robot mr-2"></i>AI代码检查平台
                 </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewData["ActiveMenu"]?.ToString() == "Home" ? "active" : "")" href="/">
+                                <i class="fas fa-home me-1"></i>首页
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewData["ActiveMenu"]?.ToString() == "Database" ? "active" : "")" href="/DatabaseCheck">
+                                <i class="fas fa-database me-1"></i>数据库检查
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </nav>
     </header>
@@ -46,7 +102,7 @@
 
     <footer class="border-top footer text-muted mt-5">
         <div class="container text-center py-3">
-            <p>&copy; @DateTime.Now.Year - MySQL数据库命名规范检查工具 &copy;</p>
+            <p>&copy; @DateTime.Now.Year - AI代码检查平台 &copy;</p>
         </div>
     </footer>
     <script src="/js/bootstrap.bundle.min.js"></script>
