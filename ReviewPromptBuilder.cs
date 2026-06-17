@@ -55,18 +55,25 @@ namespace DBCheckAI
         }
 
         /// <summary>
-        /// 构建 SQL 审查 Prompt
+        /// 构建 SQL 审查 Prompt（DDL 结构变更脚本）
+        /// 不检查命名规范，只关注性能和安全风险
         /// </summary>
         public static string BuildSqlReviewPrompt(List<ReviewFile> files)
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine("你是一名数据库专家。请审查以下 SQL 脚本。");
+            sb.AppendLine("你是一名数据库专家。请审查以下 SQL 结构变更脚本（DDL）。");
+            sb.AppendLine();
+            sb.AppendLine("重要：不检查字段命名规范，不检查审计字段。只关注以下性能和安全风险。");
             sb.AppendLine();
             sb.AppendLine("检查维度：");
-            sb.AppendLine("1. 命名规范（snake_case、保留字、审计字段完整性）");
-            sb.AppendLine("2. 脚本优化（慢 SQL 风险、N+1 查询、大事务）");
-            sb.AppendLine("3. 静态分析（缺索引、全表扫描、批量操作在循环内）");
+            sb.AppendLine("1. ALTER TABLE 大表锁表风险（如果数据量很大，建议使用 Online DDL 或 pt-online-schema-change）");
+            sb.AppendLine("2. 字段类型/长度合理性（如 VARCHAR(1000) 过长、标志位未 NOT NULL DEFAULT 0）");
+            sb.AppendLine("3. 新增字段是否缺少索引（如 CustomerId、WorkOrderCode 等常用查询字段）");
+            sb.AppendLine("4. 标志位字段（如 IsPickupGoods、IsCP）是否 NOT NULL DEFAULT 0（NULL 会影响索引效率）");
+            sb.AppendLine("5. 排序规则兼容性（如 utf8mb4_0900_ai_ci 在 MySQL 5.7 不兼容）");
+            sb.AppendLine("6. 多表重复添加相同字段（如 6 个表都加 CustomerId、CustomerName）是否建议抽取公共表");
+            sb.AppendLine("7. 重命名字段是否用 CHANGE（MySQL 5.7 会重建表；MySQL 8.0 应优先用 RENAME COLUMN）");
             sb.AppendLine();
             sb.AppendLine("请按以下 JSON 格式输出，不要输出任何其他解释：");
             sb.AppendLine("{");
@@ -76,7 +83,7 @@ namespace DBCheckAI
             sb.AppendLine("      \"file\": \"文件路径\",");
             sb.AppendLine("      \"line\": 45,");
             sb.AppendLine("      \"severity\": \"warning\",");
-            sb.AppendLine("      \"category\": \"命名规范|脚本优化|静态分析\",");
+            sb.AppendLine("      \"category\": \"锁表风险|字段类型|缺索引|标志位|兼容性|重复字段|重命名\",");
             sb.AppendLine("      \"message\": \"问题描述\",");
             sb.AppendLine("      \"suggestion\": \"改进建议\"");
             sb.AppendLine("    }");
@@ -84,7 +91,56 @@ namespace DBCheckAI
             sb.AppendLine("}");
             sb.AppendLine();
             sb.AppendLine("注意：");
-            sb.AppendLine("- 如果 SQL 没有明显问题，score 可以打 90-100，issues 数组可为空");
+            sb.AppendLine("- 如果 SQL 没有明显风险，score 可以打 90-100，issues 数组可为空");
+            sb.AppendLine("- severity 只能是 warning 或 info");
+            sb.AppendLine("- line 如果无法确定，可填 null");
+            sb.AppendLine("- 不要返回 Markdown 格式，只返回纯 JSON");
+            sb.AppendLine();
+            sb.AppendLine("待审查 SQL：");
+            sb.AppendLine();
+
+            AppendFiles(sb, files);
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 构建 SQL 查询审查 Prompt（DML 查询/操作脚本）
+        /// 不检查命名规范，只关注性能风险
+        /// </summary>
+        public static string BuildSqlQueryReviewPrompt(List<ReviewFile> files)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("你是一名数据库专家。请审查以下 SQL 查询或操作脚本（DML）。");
+            sb.AppendLine();
+            sb.AppendLine("重要：不检查字段命名规范。只关注以下性能风险。");
+            sb.AppendLine();
+            sb.AppendLine("检查维度：");
+            sb.AppendLine("1. 慢 SQL 风险（全表扫描、无索引 WHERE、大量 JOIN、深分页 LIMIT 1000000,10）");
+            sb.AppendLine("2. N+1 查询（循环中重复查询数据库）");
+            sb.AppendLine("3. 大事务（事务包含过多操作或长时间不提交）");
+            sb.AppendLine("4. 批量操作在循环内（逐条 INSERT/UPDATE 应改为批量）");
+            sb.AppendLine("5. 缺少索引（WHERE、JOIN、ORDER BY 字段未建索引）");
+            sb.AppendLine("6. SELECT * 浪费（只查询需要的字段）");
+            sb.AppendLine();
+            sb.AppendLine("请按以下 JSON 格式输出，不要输出任何其他解释：");
+            sb.AppendLine("{");
+            sb.AppendLine("  \"score\": 85,");
+            sb.AppendLine("  \"issues\": [");
+            sb.AppendLine("    {");
+            sb.AppendLine("      \"file\": \"文件路径\",");
+            sb.AppendLine("      \"line\": 45,");
+            sb.AppendLine("      \"severity\": \"warning\",");
+            sb.AppendLine("      \"category\": \"慢SQL|N+1|大事务|批量操作|缺索引|SELECT*\",");
+            sb.AppendLine("      \"message\": \"问题描述\",");
+            sb.AppendLine("      \"suggestion\": \"改进建议\"");
+            sb.AppendLine("    }");
+            sb.AppendLine("  ]");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine("注意：");
+            sb.AppendLine("- 如果 SQL 没有明显风险，score 可以打 90-100，issues 数组可为空");
             sb.AppendLine("- severity 只能是 warning 或 info");
             sb.AppendLine("- line 如果无法确定，可填 null");
             sb.AppendLine("- 不要返回 Markdown 格式，只返回纯 JSON");

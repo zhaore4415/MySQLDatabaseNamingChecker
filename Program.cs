@@ -105,7 +105,16 @@ namespace DBCheckAI
                     string prompt;
                     if (request.Type == "sql")
                     {
-                        prompt = ReviewPromptBuilder.BuildSqlReviewPrompt(request.Files);
+                        // 判断 SQL 是 DML 还是 DDL
+                        var sqlContent = string.Join("\n", request.Files.Select(f => f.Content));
+                        if (IsDmlSql(sqlContent))
+                        {
+                            prompt = ReviewPromptBuilder.BuildSqlQueryReviewPrompt(request.Files);
+                        }
+                        else
+                        {
+                            prompt = ReviewPromptBuilder.BuildSqlReviewPrompt(request.Files);
+                        }
                     }
                     else
                     {
@@ -128,6 +137,16 @@ namespace DBCheckAI
                     }, statusCode: 500);
                 }
             });
+        }
+
+        /// <summary>
+        /// 判断 SQL 是否为 DML（查询/操作语句）
+        /// </summary>
+        private static bool IsDmlSql(string sqlContent)
+        {
+            var dmlKeywords = new[] { "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE" };
+            var upperSql = sqlContent.ToUpperInvariant();
+            return dmlKeywords.Any(k => upperSql.Contains(k));
         }
 
         /// <summary>

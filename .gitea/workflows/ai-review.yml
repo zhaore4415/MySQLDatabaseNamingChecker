@@ -41,8 +41,16 @@ jobs:
           FILES_JSON=$(echo "$FILES_JSON" | sed 's/,$//')
           FILES_JSON="${FILES_JSON}]"
 
+          # 根据文件类型自动判断审查类型
+          if grep -q '\.sql$' changed_files.txt; then
+            REVIEW_TYPE="sql"
+          else
+            REVIEW_TYPE="code"
+          fi
+          echo "Review type: ${REVIEW_TYPE}"
+
           # 构建完整请求体
-          echo "{\"type\":\"code\",\"repo\":\"${{ github.repository }}\",\"pr_number\":${{ github.event.number }},\"files\":$FILES_JSON}" > request.json
+          echo "{\"type\":\"${REVIEW_TYPE}\",\"repo\":\"${{ github.repository }}\",\"pr_number\":${{ github.event.number }},\"files\":$FILES_JSON}" > request.json
           echo "payload_file=request.json" >> $GITHUB_OUTPUT
 
       # 3. 调用 AI Review API
@@ -50,26 +58,44 @@ jobs:
         if: steps.changes.outputs.has_changes == 'true'
         id: ai_call
         run: |
-          RESPONSE=$(curl -s -X POST "${{ secrets.AI_REVIEW_API_URL }}/api/review" \
+          echo "Testing connectivity to API..."
+          ping -c 1 10.10.33.39 || echo "Ping failed"
+          curl -v http://10.10.33.39:41136/api/review --max-time 10 || echo "Curl failed"
+          
+          RESPONSE=$(curl -v -X POST "${{ secrets.AI_REVIEW_API_URL }}/api/review" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.AI_REVIEW_TOKEN }}" \
             -d @${{ steps.payload.outputs.payload_file }} \
-            --max-time 300)
+            --max-time 300 2>&1)
           
-          # 多行输出到 GITHUB_OUTPUT 必须用 heredoc 格式
+          echo "Raw response length: ${#RESPONSE}"
+          echo "Raw response:"
+          echo "$RESPONSE"
+          
+          # 写入文件供后续步骤读取（避免 GITHUB_OUTPUT 多行问题）
+          echo "$RESPONSE" > /tmp/ai_response.json
+          
+          # 同时尝试写入 GITHUB_OUTPUT
           {
             echo "result<<EOF"
             echo "$RESPONSE"
             echo "EOF"
           } >> $GITHUB_OUTPUT
-          
-          echo "$RESPONSE"
+
+
 
       # 4. 打印结果到 CI 日志（并设置检查状态）
       - name: Report results
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          RESULT='${{ steps.ai_call.outputs.result }}'
+          # 优先从文件读取响应（避免 GITHUB_OUTPUT 多行问题）
+          if [ -f /tmp/ai_response.json ]; then
+            RESULT=$(cat /tmp/ai_response.json)
+          else
+            RESULT='${{ steps.ai_call.outputs.result }}'
+          fi
+          
+          echo "Response length: ${#RESULT}"
           
           # 尝试用 python3 解析评分（Runner 没有 jq）
           SCORE=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('score','N/A'))" 2>/dev/null || echo "N/A")
