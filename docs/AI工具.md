@@ -195,15 +195,21 @@ Authorization: Bearer {token}
 {文件内容}
 ```
 
-### 6.2 SQL 审查 Prompt
+### 6.2 SQL 结构变更审查 Prompt（DDL）
 
 ```
-你是一名数据库专家。请审查以下 SQL 脚本。
+你是一名数据库专家。请审查以下 SQL 结构变更脚本（DDL）。
+
+重要：不检查字段命名规范，不检查审计字段。只关注以下性能和安全风险。
 
 检查维度：
-1. 命名规范（snake_case、保留字、审计字段完整性）
-2. 脚本优化（慢 SQL 风险、N+1 查询、大事务）
-3. 静态分析（缺索引、全表扫描、批量操作在循环内）
+1. ALTER TABLE 大表锁表风险（如果数据量很大，建议使用 Online DDL 或 pt-online-schema-change）
+2. 字段类型/长度合理性（如 VARCHAR(1000) 过长、标志位未 NOT NULL DEFAULT 0）
+3. 新增字段是否缺少索引（如 CustomerId、WorkOrderCode 等常用查询字段）
+4. 标志位字段（如 IsPickupGoods、IsCP）是否 NOT NULL DEFAULT 0（NULL 会影响索引效率）
+5. 排序规则兼容性（如 utf8mb4_0900_ai_ci 在 MySQL 5.7 不兼容）
+6. 多表重复添加相同字段（如 6 个表都加 CustomerId、CustomerName）是否建议抽取公共表
+7. 重命名字段是否用 CHANGE（MySQL 5.7 会重建表；MySQL 8.0 应优先用 RENAME COLUMN）
 
 请按以下 JSON 格式输出，不要输出任何其他解释：
 {
@@ -213,7 +219,41 @@ Authorization: Bearer {token}
       "file": "文件路径",
       "line": 行号,
       "severity": "warning|info",
-      "category": "命名规范|脚本优化|静态分析",
+      "category": "锁表风险|字段类型|缺索引|标志位|兼容性|重复字段|重命名",
+      "message": "问题描述",
+      "suggestion": "改进建议"
+    }
+  ]
+}
+
+待审查 SQL：
+{文件内容}
+```
+
+### 6.3 SQL 查询审查 Prompt（DML）
+
+```
+你是一名数据库专家。请审查以下 SQL 查询或操作脚本（DML）。
+
+重要：不检查字段命名规范。只关注以下性能风险。
+
+检查维度：
+1. 慢 SQL 风险（全表扫描、无索引 WHERE、大量 JOIN、深分页 LIMIT 1000000,10）
+2. N+1 查询（循环中重复查询数据库）
+3. 大事务（事务包含过多操作或长时间不提交）
+4. 批量操作在循环内（逐条 INSERT/UPDATE 应改为批量）
+5. 缺少索引（WHERE、JOIN、ORDER BY 字段未建索引）
+6. SELECT * 浪费（只查询需要的字段）
+
+请按以下 JSON 格式输出，不要输出任何其他解释：
+{
+  "score": 85,
+  "issues": [
+    {
+      "file": "文件路径",
+      "line": 行号,
+      "severity": "warning|info",
+      "category": "慢SQL|N+1|大事务|批量操作|缺索引|SELECT*",
       "message": "问题描述",
       "suggestion": "改进建议"
     }
@@ -241,7 +281,7 @@ on:
 
 jobs:
   ai-review:
-    runs-on: ubuntu-latest
+    runs-on: linux_amd64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -286,53 +326,81 @@ jobs:
           RESPONSE=$(curl -s -X POST "${{ secrets.AI_REVIEW_API_URL }}/api/review" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.AI_REVIEW_TOKEN }}" \
+            -H "Expect:" \
             -d @${{ steps.payload.outputs.payload_file }} \
             --max-time 300)
-          echo "result=$RESPONSE" >> $GITHUB_OUTPUT
-          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+          
+          # 多行输出到 GITHUB_OUTPUT 必须用 heredoc 格式
+          {
+            echo "result<<EOF"
+            echo "$RESPONSE"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          echo "$RESPONSE"
 
-      # 4. 打印结果到 CI 日志
+      # 4. 打印结果到 CI 日志（并设置检查状态）
       - name: Report results
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          SCORE=$(echo '${{ steps.ai_call.outputs.result }}' | jq -r '.score // 0')
-          ISSUES=$(echo '${{ steps.ai_call.outputs.result }}' | jq -r '.total_issues // 0')
+          RESULT='${{ steps.ai_call.outputs.result }}'
+          
+          # 尝试用 python3 解析评分（Runner 没有 jq）
+          SCORE=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('score','N/A'))" 2>/dev/null || echo "N/A")
+          ISSUES=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('total_issues',0))" 2>/dev/null || echo "0")
+          
           echo "========================================"
           echo "AI 审查评分: ${SCORE}/100"
           echo "发现问题: ${ISSUES} 个"
           echo "========================================"
+          echo "完整结果:"
+          echo "$RESULT"
+          echo "========================================"
+
           # 合并门禁：代码已保留，但默认不启用（直接 exit 0）
           # 如需强制，取消下面注释并改为 exit 1
-          # if [ "$SCORE" -lt 60 ]; then
+          # if [ "$SCORE" != "N/A" ] && [ "$SCORE" -lt 60 ]; then
           #   echo "评分低于 60，标记失败"
           #   exit 1
           # fi
           exit 0
 
-      # 5. 可选：将结果评论到 PR（需要 Gitea API Token）
+      # 5. 将结果评论到 PR（需要 Gitea API Token）
       - name: Comment PR
         if: steps.changes.outputs.has_changes == 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const result = JSON.parse('${{ steps.ai_call.outputs.result }}');
-            const markdown = result.report_markdown || 'AI 检查完成';
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## AI 代码审查报告\n\n**评分**: ${result.score}/100\n**问题数**: ${result.total_issues}\n\n${markdown}`
-            });
+        run: |
+          RESULT='${{ steps.ai_call.outputs.result }}'
+          SCORE=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('score','N/A'))" 2>/dev/null || echo "N/A")
+          ISSUES=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total_issues',0))" 2>/dev/null || echo "0")
+          MARKDOWN=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('report_markdown',''))" 2>/dev/null || echo "")
+          
+          BODY="## AI 代码审查报告
+
+**评分**: ${SCORE}/100
+**问题数**: ${ISSUES}
+
+${MARKDOWN}"
+          
+          # 使用 Gitea API 评论到 PR
+          curl -X POST "${{ secrets.GITEA_API_URL }}/api/v1/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -d "{\"body\":\"${BODY}\"}"
+```
 ```
 
 ### 7.2 Gitea Secret 配置
 
-在 Gitea 仓库设置中配置：
+在 Gitea 仓库设置中配置（`仓库 → 设置 → 工作流 → 密钥`）：
 
 | Secret | 值 | 说明 |
 |--------|------|------|
 | `AI_REVIEW_API_URL` | `http://你的DBCheckAI服务地址:端口` | 内网地址即可，Runner 能访问到 |
-| `AI_REVIEW_TOKEN` | 你自己定的 API Key | 与 DBCheckAI 的 `appsettings.json` 中配置一致 |
+| `AI_REVIEW_TOKEN` | 你自己定的 API Key | 与 DBCheckAI 的 `appsettings.json` 中 `ApiToken` 一致 |
+| `GITEA_API_URL` | `https://git.shijizhongyun.com` | 你的 Gitea 服务器地址 |
+| `GITEA_TOKEN` | 个人访问令牌 | 在 Gitea 用户设置 → 应用 → 生成新的令牌，勾选 `repository` 权限 |
+
+> **注意**：`GITEA_TOKEN` 用于 PR 评论功能。如果不启用 PR 评论，只需要配置前两个 Secret。
 
 ### 7.3 合并门禁（实现但不启用）
 
@@ -341,15 +409,48 @@ jobs:
 - **启用方式**：取消注释 `# if [ "$SCORE" -lt 60 ]; then ... exit 1` 即可
 - **建议**：先观察 2 周，看 AI 评分的合理性和误报率，再决定是否强制
 
+### 7.4 PR 评论展示方案（推荐）
+
+#### 方案说明
+
+检查完成后，AI 结果不仅输出到 CI 日志，还会**自动评论到 PR 页面下方**。开发者不用点进工作流，在 PR 页面就能直接看到评分和问题列表。
+
+**效果示例：**
+
+```markdown
+## AI 代码审查报告
+
+**评分**: 85/100
+**问题数**: 3
+
+1. **ALTER TABLE 大表锁表风险**：`t_air_out_inquiry` 数据量未知，建议确认数据量 > 100 万时使用 pt-online-schema-change
+2. **字段缺少索引**：`CustomerId` 为常用查询字段，建议添加 `idx_customer_id`
+3. **标志位字段默认值**：`IsPickupGoods` 为 NULL，建议改为 `NOT NULL DEFAULT 0`
+```
+
+#### 为什么不做外链报告页面？
+
+| 方案 | 是否采用 | 原因 |
+|------|---------|------|
+| **PR 评论直接展示** | **采用** | 实现成本低，Markdown 效果够用，开发者在 PR 页面直接可见 |
+| 外链报告页面（`http://10.10.33.39:41136/Report/{id}`） | **暂不采用** | 需要存储历史、新增页面路由，当前价值不高，后续按需扩展 |
+| 代码行内评论 | **暂不采用** | Gitea API 较复杂，AI 行号可能不准，后续优化 |
+
+#### 未来扩展方向
+
+如果后续 PR 评论确实放不下（如 20+ 个问题），可以：
+- PR 评论只显示**前 5 个问题 + 评分**
+- 加一句"完整报告见 CI 日志"，链接到 Gitea Actions 运行页面
+
 ---
 
-## 8. 实现计划（极简三阶段）
+8. 实现计划（极简三阶段）
 
 | 阶段 | 时间 | 目标 |
 |------|------|------|
-| **Week 1** | 3 天 | DBCheckAI 扩展 `/api/review` 接口 + 两个 Prompt（代码/SQL）+ 本地 Postman 测试 |
-| **Week 2** | 2 天 | 编写 `ai-review.yml` + 在测试仓库跑通真实 PR 检查 |
-| **Week 3** | 2 天 | 观察真实 PR 效果，微调 Prompt（这是最关键的一步）+ 添加单文件大小限制兜底 |
+| **Week 1** | 3 天 | DBCheckAI 扩展 `/api/review` 接口 + Prompt 构建器（代码/DDL/DML）+ 本地 Postman 测试 |
+| **Week 2** | 2 天 | 编写 `ai-review.yml` + 在测试仓库跑通真实 PR 检查 + 解决 Runner 网络连通性 |
+| **Week 3** | 2 天 | 添加 PR 评论功能 + 观察真实 PR 效果，微调 Prompt（这是最关键的一步） |
 
 ---
 
@@ -384,6 +485,6 @@ jobs:
 
 ---
 
-*文档版本: 2.0*  
+*文档版本: 2.1*  
 *创建日期: 2026-06-15*  
-*最后更新: 2026-06-16*
+*最后更新: 2026-06-17*

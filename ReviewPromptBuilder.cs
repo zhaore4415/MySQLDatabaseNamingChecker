@@ -16,7 +16,10 @@ namespace DBCheckAI
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine("你是一名资深 C# 架构师。请对以下代码变更进行审查。");
+            sb.AppendLine("你是一名资深 C# 架构师。以下内容为本次 Git 变更的差异（diff 格式）。");
+            sb.AppendLine("- '+' 开头的行表示本次新增的代码");
+            sb.AppendLine("- '-' 开头的行表示本次删除的代码");
+            sb.AppendLine("- 请重点关注 '+' 新增行的代码质量");
             sb.AppendLine();
             sb.AppendLine("评估维度（每项 0-20 分，总分 100）：");
             sb.AppendLine("1. 设计模式符合度（SOLID 原则、常用设计模式应用）");
@@ -46,7 +49,7 @@ namespace DBCheckAI
             sb.AppendLine("- line 如果无法确定，可填 null");
             sb.AppendLine("- 不要返回 Markdown 格式，只返回纯 JSON");
             sb.AppendLine();
-            sb.AppendLine("待审查代码：");
+            sb.AppendLine("本次变更差异（diff）：");
             sb.AppendLine();
 
             AppendFiles(sb, files);
@@ -62,7 +65,10 @@ namespace DBCheckAI
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine("你是一名数据库专家。请审查以下 SQL 结构变更脚本（DDL）。");
+            sb.AppendLine("你是一名数据库专家。以下内容为本次 Git 变更的 SQL 差异（diff 格式）。");
+            sb.AppendLine("- '+' 开头的行表示本次新增的 SQL");
+            sb.AppendLine("- '-' 开头的行表示本次删除的 SQL");
+            sb.AppendLine("- 请重点关注 '+' 新增行的 SQL 质量");
             sb.AppendLine();
             sb.AppendLine("重要：不检查字段命名规范，不检查审计字段。只关注以下性能和安全风险。");
             sb.AppendLine();
@@ -96,7 +102,7 @@ namespace DBCheckAI
             sb.AppendLine("- line 如果无法确定，可填 null");
             sb.AppendLine("- 不要返回 Markdown 格式，只返回纯 JSON");
             sb.AppendLine();
-            sb.AppendLine("待审查 SQL：");
+            sb.AppendLine("本次变更差异（diff）：");
             sb.AppendLine();
 
             AppendFiles(sb, files);
@@ -112,7 +118,10 @@ namespace DBCheckAI
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine("你是一名数据库专家。请审查以下 SQL 查询或操作脚本（DML）。");
+            sb.AppendLine("你是一名数据库专家。以下内容为本次 Git 变更的 SQL 差异（diff 格式）。");
+            sb.AppendLine("- '+' 开头的行表示本次新增或修改的 SQL");
+            sb.AppendLine("- '-' 开头的行表示本次删除的 SQL");
+            sb.AppendLine("- 请重点关注 '+' 新增行的性能和安全问题");
             sb.AppendLine();
             sb.AppendLine("重要：不检查字段命名规范。只关注以下性能风险。");
             sb.AppendLine();
@@ -145,7 +154,7 @@ namespace DBCheckAI
             sb.AppendLine("- line 如果无法确定，可填 null");
             sb.AppendLine("- 不要返回 Markdown 格式，只返回纯 JSON");
             sb.AppendLine();
-            sb.AppendLine("待审查 SQL：");
+            sb.AppendLine("本次变更差异（diff）：");
             sb.AppendLine();
 
             AppendFiles(sb, files);
@@ -162,14 +171,16 @@ namespace DBCheckAI
             foreach (var file in files)
             {
                 var bytes = Encoding.UTF8.GetByteCount(file.Content);
+
+                sb.AppendLine($"--- 文件: {file.Path} ---");
+
                 if (bytes > MaxFileSize)
                 {
-                    sb.AppendLine($"--- 文件: {file.Path} (内容超过 50KB，已跳过) ---");
+                    sb.AppendLine("（差异内容超过 50KB，已跳过）");
                     sb.AppendLine();
                     continue;
                 }
 
-                sb.AppendLine($"--- 文件: {file.Path} ---");
                 sb.AppendLine(file.Content);
                 sb.AppendLine();
                 included++;

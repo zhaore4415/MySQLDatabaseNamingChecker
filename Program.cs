@@ -140,13 +140,17 @@ namespace DBCheckAI
         }
 
         /// <summary>
-        /// 判断 SQL 是否为 DML（查询/操作语句）
+        /// 从 diff 内容中提取新增的行（以 + 开头），判断是否包含 DML
         /// </summary>
-        private static bool IsDmlSql(string sqlContent)
+        private static bool IsDmlSql(string diffContent)
         {
+            // diff 格式中，+ 开头的行是新增行（跳过 +++ 文件头标记）
+            var addedLines = diffContent.Split('\n')
+                .Where(l => l.StartsWith('+') && !l.StartsWith("+++"))
+                .Select(l => l.TrimStart('+').Trim());
+
             var dmlKeywords = new[] { "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE" };
-            var upperSql = sqlContent.ToUpperInvariant();
-            return dmlKeywords.Any(k => upperSql.Contains(k));
+            return addedLines.Any(line => dmlKeywords.Any(k => line.ToUpperInvariant().Contains(k)));
         }
 
         /// <summary>
