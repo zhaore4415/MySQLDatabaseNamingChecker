@@ -62,42 +62,25 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.number }}
         run: |
-          python3 << 'PYEOF'
-import json, subprocess, os
-
-base = os.environ['BASE_SHA']
-head = os.environ['HEAD_SHA']
-
-# 读取变更文件列表
-with open('changed_files.txt') as f:
-    changed_files = [l.strip() for l in f if l.strip()]
-
-# 根据文件类型判断审查类型
-has_sql = any(fp.endswith('.sql') for fp in changed_files)
-review_type = 'sql' if has_sql else 'code'
-print(f'Review type: {review_type}')
-
-# 构建 files 数组（用 subprocess 获取 diff，保留完整换行）
-files = []
-for fp in changed_files:
-    r = subprocess.run(['git', 'diff', base, head, '--', fp], capture_output=True, text=True)
-    if r.stdout.strip():
-        files.append({"path": fp, "content": r.stdout, "change_type": "diff"})
-
-# 构建完整请求体
-payload = {
-    "type": review_type,
-    "repo": os.environ['REPO'],
-    "pr_number": int(os.environ['PR_NUMBER']),
-    "files": files
-}
-
-# 写入文件（ensure_ascii=False 保留中文，indent=None 保持紧凑）
-with open('request.json', 'w', encoding='utf-8') as f:
-    json.dump(payload, f, ensure_ascii=False)
-
-print(f'Payload built: {len(files)} file(s), type={review_type}')
-PYEOF
+          python3 -c "
+          import json, subprocess, os
+          base = os.environ['BASE_SHA']
+          head = os.environ['HEAD_SHA']
+          with open('changed_files.txt') as f:
+              changed_files = [l.strip() for l in f if l.strip()]
+          has_sql = any(fp.endswith('.sql') for fp in changed_files)
+          review_type = 'sql' if has_sql else 'code'
+          print(f'Review type: {review_type}')
+          files = []
+          for fp in changed_files:
+              r = subprocess.run(['git', 'diff', base, head, '--', fp], capture_output=True, text=True)
+              if r.stdout.strip():
+                  files.append({'path': fp, 'content': r.stdout, 'change_type': 'diff'})
+          payload = {'type': review_type, 'repo': os.environ['REPO'], 'pr_number': int(os.environ['PR_NUMBER']), 'files': files}
+          with open('request.json', 'w', encoding='utf-8') as f:
+              json.dump(payload, f, ensure_ascii=False)
+          print(f'Payload built: {len(files)} file(s), type={review_type}')
+          "
           echo "payload_file=request.json" >> $GITHUB_OUTPUT
 
       # 2.5 调试：打印实际发送的请求体（确认入参正确）
@@ -167,6 +150,9 @@ PYEOF
           echo "$RESULT"
           echo "========================================"
 
+          # 将报告写入 Step Summary，工作流页面直接可看
+          echo "$RESULT" | python3 -c "import sys,json;print(json.load(sys.stdin).get('report_markdown',''))" >> $GITHUB_STEP_SUMMARY
+
           # 合并门禁：代码已保留，但默认不启用（直接 exit 0）
           # 如需强制，取消下面注释并改为 exit 1
           # if [ "$SCORE" != "N/A" ] && [ "$SCORE" -lt 60 ]; then
@@ -190,13 +176,8 @@ PYEOF
           ISSUES=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total_issues',0))" 2>/dev/null || echo "0")
           MARKDOWN=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('report_markdown',''))" 2>/dev/null || echo "")
 
-          # 用 echo 写入文件，避免 ** 在 YAML 行首被误解析为锚点
-          echo "## AI 代码审查报告" > /tmp/body.txt
-          echo "" >> /tmp/body.txt
-          echo "**评分: ${SCORE}/100**" >> /tmp/body.txt
-          echo "**问题数: ${ISSUES}**" >> /tmp/body.txt
-          echo "" >> /tmp/body.txt
-          echo "${MARKDOWN}" >> /tmp/body.txt
+          # 直接用 API 返回的报告 Markdown，本身已包含标题和评分
+          echo "${MARKDOWN}" > /tmp/body.txt
 
           # 用 python3 构建 JSON，避免 shell 引号转义问题
           python3 -c 'import json; print(json.dumps({"body": open("/tmp/body.txt").read()}))' > /tmp/comment.json
