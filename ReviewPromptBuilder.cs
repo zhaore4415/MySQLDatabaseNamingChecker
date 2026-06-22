@@ -80,6 +80,7 @@ namespace DBCheckAI
             sb.AppendLine("5. 排序规则兼容性（如 utf8mb4_0900_ai_ci 在 MySQL 5.7 不兼容）");
             sb.AppendLine("6. 多表重复添加相同字段（如 6 个表都加 CustomerId、CustomerName）是否建议抽取公共表");
             sb.AppendLine("7. 重命名字段是否用 CHANGE（MySQL 5.7 会重建表；MySQL 8.0 应优先用 RENAME COLUMN）");
+            sb.AppendLine("8. 冗余/无用操作（创建空表后立即删除、无意义的 ALTER、重复操作等死代码）");
             sb.AppendLine();
             sb.AppendLine("请按以下 JSON 格式输出，不要输出任何其他解释：");
             sb.AppendLine("{");
@@ -89,7 +90,7 @@ namespace DBCheckAI
             sb.AppendLine("      \"file\": \"文件路径\",");
             sb.AppendLine("      \"line\": 45,");
             sb.AppendLine("      \"severity\": \"warning\",");
-            sb.AppendLine("      \"category\": \"锁表风险|字段类型|缺索引|标志位|兼容性|重复字段|重命名\",");
+            sb.AppendLine("      \"category\": \"锁表风险|字段类型|缺索引|标志位|兼容性|重复字段|重命名|冗余操作\",");
             sb.AppendLine("      \"message\": \"问题描述\",");
             sb.AppendLine("      \"suggestion\": \"改进建议\"");
             sb.AppendLine("    }");
@@ -132,6 +133,7 @@ namespace DBCheckAI
             sb.AppendLine("4. 批量操作在循环内（逐条 INSERT/UPDATE 应改为批量）");
             sb.AppendLine("5. 缺少索引（WHERE、JOIN、ORDER BY 字段未建索引）");
             sb.AppendLine("6. SELECT * 浪费（只查询需要的字段）");
+            sb.AppendLine("7. 冗余/无用代码（无意义查询、未使用的变量、重复操作、死代码等，如 SELECT 1; SET @var; 创建表后立即删除）");
             sb.AppendLine();
             sb.AppendLine("请按以下 JSON 格式输出，不要输出任何其他解释：");
             sb.AppendLine("{");
@@ -141,7 +143,7 @@ namespace DBCheckAI
             sb.AppendLine("      \"file\": \"文件路径\",");
             sb.AppendLine("      \"line\": 45,");
             sb.AppendLine("      \"severity\": \"warning\",");
-            sb.AppendLine("      \"category\": \"慢SQL|N+1|大事务|批量操作|缺索引|SELECT*\",");
+            sb.AppendLine("      \"category\": \"慢SQL|N+1|大事务|批量操作|缺索引|SELECT*|冗余代码\",");
             sb.AppendLine("      \"message\": \"问题描述\",");
             sb.AppendLine("      \"suggestion\": \"改进建议\"");
             sb.AppendLine("    }");

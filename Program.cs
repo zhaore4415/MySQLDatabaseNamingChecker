@@ -154,7 +154,7 @@ namespace DBCheckAI
         }
 
         /// <summary>
-        /// 解析 AI 返回的 JSON，失败时返回原始文本作为 Markdown 报告
+        /// 解析 AI 返回的 JSON，生成可读的 Markdown 报告
         /// </summary>
         private static ReviewResponse ParseAIResponse(string aiResponse, List<ReviewFile> files)
         {
@@ -176,20 +176,61 @@ namespace DBCheckAI
                 var aiResult = JsonSerializer.Deserialize<AIReviewResult>(jsonText);
                 if (aiResult != null)
                 {
+                    var issues = (aiResult.Issues ?? new List<AIReviewIssue>()).Select(i => new ReviewIssue
+                    {
+                        File = i.File ?? files.FirstOrDefault()?.Path ?? "",
+                        Line = i.Line,
+                        Severity = i.Severity ?? "warning",
+                        Category = i.Category ?? "",
+                        Message = i.Message ?? "",
+                        Suggestion = i.Suggestion ?? ""
+                    }).ToList();
+
+                    // 生成可读的 Markdown 报告，而非原始 JSON
+                    var md = new StringBuilder();
+                    md.AppendLine("## AI 审查报告");
+                    md.AppendLine();
+                    md.AppendLine($"**评分**: {aiResult.Score}/100");
+                    md.AppendLine($"**问题数**: {issues.Count}");
+                    md.AppendLine();
+                    md.AppendLine("---");
+                    md.AppendLine();
+
+                    if (issues.Count > 0)
+                    {
+                        md.AppendLine("### 发现的问题");
+                        md.AppendLine();
+                        for (int i = 0; i < issues.Count; i++)
+                        {
+                            var issue = issues[i];
+                            var severityIcon = issue.Severity == "critical" ? "🔴" :
+                                               issue.Severity == "warning" ? "⚠️" : "ℹ️";
+                            md.AppendLine($"{i + 1}. {severityIcon} **[{issue.Severity}]** {issue.Category}");
+                            md.AppendLine($"   - **位置**: {issue.File}{(issue.Line.HasValue ? $" 第 {issue.Line} 行" : "")}");
+                            md.AppendLine($"   - **问题**: {issue.Message}");
+                            if (!string.IsNullOrEmpty(issue.Suggestion))
+                            {
+                                md.AppendLine($"   - **建议**: {issue.Suggestion}");
+                            }
+                            md.AppendLine();
+                        }
+                    }
+                    else
+                    {
+                        md.AppendLine("✅ **未发现明显问题**");
+                        md.AppendLine();
+                    }
+
+                    md.AppendLine("---");
+                    md.AppendLine();
+                    md.AppendLine($"*审查时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}*");
+
                     return new ReviewResponse
                     {
                         Score = aiResult.Score,
-                        TotalIssues = aiResult.Issues?.Count ?? 0,
-                        Issues = (aiResult.Issues ?? new List<AIReviewIssue>()).Select(i => new ReviewIssue
-                        {
-                            File = i.File ?? files.FirstOrDefault()?.Path ?? "",
-                            Line = i.Line,
-                            Severity = i.Severity ?? "warning",
-                            Category = i.Category ?? "",
-                            Message = i.Message ?? "",
-                            Suggestion = i.Suggestion ?? ""
-                        }).ToList(),
-                        ReportMarkdown = $"## AI 审查报告\n\n**评分**: {aiResult.Score}/100\n\n{aiResponse}"
+                        TotalIssues = issues.Count,
+                        Issues = issues,
+                        ReportMarkdown = md.ToString()
                     };
                 }
             }
