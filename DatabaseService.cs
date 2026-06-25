@@ -1,4 +1,4 @@
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
 using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -94,9 +94,143 @@ namespace DBCheckAI
         public async Task<DatabaseSchema> GetPostgreSQLDatabaseSchemaAsync(string connectionString)
         {
             var schema = new DatabaseSchema();
-            // ... 现有的逻辑暂时保持，只修改返回值类型 ...
-            // (这里简化处理，实际生产中应补齐 PG 的索引抓取)
-            return schema; 
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                await conn.OpenAsync();
+
+                // Step 1: 获取当前 schema（排除系统 schema）
+                string currentSchemaSql = "SELECT current_schema()";
+                string currentSchema;
+                using (var cmd = new NpgsqlCommand(currentSchemaSql, conn))
+                {
+                    currentSchema = (await cmd.ExecuteScalarAsync())?.ToString() ?? "public";
+                }
+
+                // Step 2: 获取所有字段信息
+                string columnsSql = @"
+                    SELECT 
+                        c.TABLE_NAME,
+                        c.COLUMN_NAME,
+                        c.DATA_TYPE,
+                        c.UDT_NAME AS COLUMN_TYPE,
+                        c.IS_NULLABLE,
+                        c.COLUMN_DEFAULT,
+                        c.ORDINAL_POSITION,
+                        COALESCE(pk.CONSTRAINT_TYPE, '') AS COLUMN_KEY
+                    FROM information_schema.COLUMNS c
+                    LEFT JOIN (
+                        SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME, tc.CONSTRAINT_TYPE
+                        FROM information_schema.TABLE_CONSTRAINTS tc
+                        JOIN information_schema.KEY_COLUMN_USAGE kcu 
+                            ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                            AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+                            AND tc.TABLE_NAME = kcu.TABLE_NAME
+                        WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+                          AND tc.TABLE_SCHEMA = $1
+                    ) pk ON c.TABLE_NAME = pk.TABLE_NAME AND c.COLUMN_NAME = pk.COLUMN_NAME
+                    WHERE c.TABLE_SCHEMA = $1
+                    ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION";
+
+                using (var cmd = new NpgsqlCommand(columnsSql, conn))
+                {
+                    cmd.Parameters.AddWithValue(currentSchema);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            schema.Columns.Add(new DbObject
+                            {
+                                TableName = reader["TABLE_NAME"].ToString(),
+                                ColumnName = reader["COLUMN_NAME"].ToString(),
+                                DataType = reader["DATA_TYPE"].ToString(),
+                                ColumnType = reader["COLUMN_TYPE"]?.ToString() ?? reader["DATA_TYPE"].ToString(),
+                                IsNullable = reader["IS_NULLABLE"].ToString() == "YES",
+                                ColumnKey = reader["COLUMN_KEY"].ToString() == "PRIMARY KEY" ? "PRI" : "",
+                                ColumnDefault = reader["COLUMN_DEFAULT"]?.ToString(),
+                                Extra = reader["COLUMN_DEFAULT"]?.ToString()?.Contains("nextval") == true ? "auto_increment" : ""
+                            });
+                        }
+                    }
+                }
+
+                // Step 3: 获取索引信息（从 pg_indexes 提取，用正则解析列名）
+                string indexSql = @"
+                    SELECT
+                        tablename AS TABLE_NAME,
+                        indexname AS INDEX_NAME,
+                        indexdef AS INDEX_DEF
+                    FROM pg_catalog.pg_indexes
+                    WHERE schemaname = $1
+                      AND tablename NOT LIKE 'pg_%'
+                    ORDER BY tablename, indexname";
+
+                using (var cmd = new NpgsqlCommand(indexSql, conn))
+                {
+                    cmd.Parameters.AddWithValue(currentSchema);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var tableName = reader["TABLE_NAME"].ToString();
+                            var indexName = reader["INDEX_NAME"].ToString();
+                            var indexDef = reader["INDEX_DEF"].ToString();
+
+                            bool isUnique = indexDef?.Contains("UNIQUE ", StringComparison.OrdinalIgnoreCase) == true;
+
+                            // 从 indexdef 中提取列名：CREATE [UNIQUE] INDEX xx ON table (col1, col2)
+                            var colMatch = System.Text.RegularExpressions.Regex.Match(indexDef ?? "", @"\((.+?)\)\s*$");
+                            var columns = colMatch.Success
+                                ? colMatch.Groups[1].Value.Split(',').Select(c => c.Trim().Trim('"')).Where(c => !string.IsNullOrEmpty(c)).ToList()
+                                : new List<string>();
+
+                            schema.Indexes.Add(new DbIndex
+                            {
+                                TableName = tableName,
+                                IndexName = indexName,
+                                IsUnique = isUnique,
+                                ColumnNames = columns
+                            });
+                        }
+                    }
+                }
+
+                // Step 4: 标记外键
+                string fkSql = @"
+                    SELECT
+                        kcu.TABLE_NAME,
+                        kcu.COLUMN_NAME
+                    FROM information_schema.TABLE_CONSTRAINTS tc
+                    JOIN information_schema.KEY_COLUMN_USAGE kcu 
+                        ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                        AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+                        AND tc.TABLE_NAME = kcu.TABLE_NAME
+                    WHERE tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
+                      AND tc.TABLE_SCHEMA = $1";
+
+                var foreignKeys = new HashSet<(string, string)>();
+                using (var cmd = new NpgsqlCommand(fkSql, conn))
+                {
+                    cmd.Parameters.AddWithValue(currentSchema);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            foreignKeys.Add((reader["TABLE_NAME"].ToString()!, reader["COLUMN_NAME"].ToString()!));
+                        }
+                    }
+                }
+
+                foreach (var col in schema.Columns)
+                {
+                    if (foreignKeys.Contains((col.TableName!, col.ColumnName!)))
+                    {
+                        col.IsForeignKey = true;
+                    }
+                }
+            }
+
+            return schema;
         }
 
         /// <summary>
@@ -256,7 +390,10 @@ namespace DBCheckAI
             prompt.AppendLine("请按照以下格式生成报告：");
             prompt.AppendLine("1. 报告标题和生成时间");
             prompt.AppendLine("2. 检查摘要（总表数、总字段数、不合规项数量、合规率）");
-            prompt.AppendLine("3. 不符合规范的命名列表（表格形式，包含类型、对象、当前名称、问题、建议名称）");
+            prompt.AppendLine("3. 不符合规范的命名列表（表格形式，包含以下列：类型、对象、当前名称、问题、建议名称）");
+            prompt.AppendLine("   - 类型为\"表名\"时：对象列为完整表名，当前名称列为该表名");
+            prompt.AppendLine("   - 类型为\"字段名\"时：对象列填写\"表名.字段名\"（例如 \"user_info.email\"），当前名称列为该字段名");
+            prompt.AppendLine("   禁止将字段名和表名分开填写到不同列，必须在一个单元格内体现归属关系");
             prompt.AppendLine("4. 建议的SQL修复语句");
             prompt.AppendLine();
             prompt.AppendLine("请确保报告使用Markdown格式，语言为中文。");

@@ -26,6 +26,18 @@
                             <div class="form-text text-muted">选择要连接的数据库类型</div>
                         </div>
 
+                        <!-- 连接字符串快速输入 -->
+                        <div class="form-group mb-4">
+                            <label for="connString" class="form-label font-weight-bold">连接字符串（快速填写）</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="connString" placeholder="postgres://user:password@host:5432/database 或 Server=host;Port=3306;Database=db;Uid=user;Pwd=pass;" />
+                                <button type="button" class="btn btn-outline-secondary" id="parseConnString" title="解析并填入下方表单">
+                                    <i class="fas fa-magic"></i> 解析
+                                </button>
+                            </div>
+                            <div class="form-text text-muted">粘贴连接字符串后点击"解析"或按 Enter，自动填充各字段</div>
+                        </div>
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
@@ -116,7 +128,7 @@
                             <a href="javascript:void(0)" onclick="window.print()" class="btn btn-outline-secondary">
                                 <i class="fas fa-print me-2"></i>打印报告
                             </a>
-                            <a href="data:text/markdown;charset=utf-8,@Uri.EscapeDataString(Model.ReportMarkdown)"
+                            <a href="data:text/markdown;charset=utf-8,@(Uri.EscapeDataString(Model.ReportMarkdown))"
                                download="DatabaseNamingReport_@(DateTime.Now.ToString("yyyyMMdd_HHmmss")).md"
                                class="btn btn-outline-primary">
                                 <i class="fas fa-download me-2"></i>下载Markdown报告
@@ -136,6 +148,66 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const reportContainer = document.getElementById('reportContainer');
             const errorMessage = document.getElementById('errorMessage');
+
+            // ===== 连接字符串解析 =====
+            const connStringInput = document.getElementById('connString');
+            const parseBtn = document.getElementById('parseConnString');
+
+            function parseConnectionString(str) {
+                str = str.trim();
+                if (!str) return;
+
+                // PostgreSQL URI 格式: postgres://user:pass@host:port/db?params
+                const pgMatch = str.match(/^postgres(?:ql)?:\/\/([^:]+):([^@@]+)@@([^:]+):(\d+)\/([^?\s]+)/i);
+                if (pgMatch) {
+                    document.getElementById('databaseType').value = 'PostgreSQL';
+                    document.getElementById('dbHost').value = pgMatch[3];
+                    document.getElementById('dbPort').value = pgMatch[4];
+                    document.getElementById('dbName').value = pgMatch[5];
+                    document.getElementById('dbUser').value = pgMatch[1];
+                    document.getElementById('dbPassword').value = pgMatch[2];
+                    // 触发 change 事件更新端口占位符
+                    document.getElementById('databaseType').dispatchEvent(new Event('change'));
+                    return;
+                }
+
+                // MySQL 连接字符串: Server=host;Port=3306;Database=db;Uid=user;Pwd=pass;
+                const mysqlHost = str.match(/(?:Server|Host)\s*=\s*([^;]+)/i);
+                const mysqlPort = str.match(/(?:Port)\s*=\s*(\d+)/i);
+                const mysqlDb = str.match(/(?:Database|DB)\s*=\s*([^;]+)/i);
+                const mysqlUser = str.match(/(?:Uid|User|Username)\s*=\s*([^;]+)/i);
+                const mysqlPwd = str.match(/(?:Pwd|Password)\s*=\s*([^;]+)/i);
+
+                if (mysqlHost) {
+                    document.getElementById('databaseType').value = 'MySQL';
+                    if (mysqlHost[1]) document.getElementById('dbHost').value = mysqlHost[1];
+                    if (mysqlPort) document.getElementById('dbPort').value = mysqlPort[1];
+                    if (mysqlDb) document.getElementById('dbName').value = mysqlDb[1];
+                    if (mysqlUser) document.getElementById('dbUser').value = mysqlUser[1];
+                    if (mysqlPwd) document.getElementById('dbPassword').value = mysqlPwd[1];
+                    document.getElementById('databaseType').dispatchEvent(new Event('change'));
+                    return;
+                }
+
+                // 提示无法识别
+                alert('无法识别的连接字符串格式。\n\n支持的格式：\n- PostgreSQL: postgres://user:password@host:5432/database\n- MySQL: Server=host;Port=3306;Database=db;Uid=user;Pwd=pass;');
+            }
+
+            if (parseBtn) {
+                parseBtn.addEventListener('click', function() {
+                    parseConnectionString(connStringInput.value);
+                });
+            }
+
+            if (connStringInput) {
+                connStringInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        parseConnectionString(this.value);
+                    }
+                });
+            }
+            // ===== 结束连接字符串解析 =====
 
             // 切换端口占位符
             const databaseTypeSelect = document.getElementById('databaseType');
