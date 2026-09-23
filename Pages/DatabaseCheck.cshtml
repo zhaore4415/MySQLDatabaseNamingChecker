@@ -94,7 +94,11 @@
                             <div class="spinner-border text-primary" role="status">
                                 <span class="sr-only">处理中...</span>
                             </div>
-                            <p class="mt-2">正在分析数据库命名规范，请稍候...</p>
+                            <p id="loadingText" class="mt-2 mb-1">正在连接数据库...</p>
+                            <div id="loadingSubText" class="text-muted small"></div>
+                            <div class="progress mt-2" style="height: 4px; max-width: 300px; margin: 0 auto;">
+                                <div id="loadingProgress" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
+                            </div>
                         </div>
                     </form>
 
@@ -237,6 +241,41 @@
                 if (reportContainer) reportContainer.style.display = 'none';
                 if (errorMessage) errorMessage.style.display = 'none';
 
+                // 加载分阶段提示
+                var progressTimer = null;
+                var progressStage = 0;
+                var progressStages = [
+                    { text: '正在连接数据库...', sub: '读取表结构和字段信息', pct: 10 },
+                    { text: '正在分析数据库结构...', sub: '解析索引和约束', pct: 25 },
+                    { text: '正在构建检查规则...', sub: '准备 AI 审查 Prompt', pct: 40 },
+                    { text: '正在调用 AI 进行审查...', sub: '根据命名规则逐项检查', pct: 60 },
+                    { text: 'AI 审查完成...', sub: '生成检查报告', pct: 85 },
+                    { text: '正在渲染报告...', sub: '格式化 Markdown 输出', pct: 95 }
+                ];
+
+                function updateProgress() {
+                    var s = progressStages[progressStage] || progressStages[progressStages.length - 1];
+                    document.getElementById('loadingText').textContent = s.text;
+                    document.getElementById('loadingSubText').textContent = s.sub;
+                    document.getElementById('loadingProgress').style.width = s.pct + '%';
+                    progressStage++;
+                    if (progressStage >= progressStages.length) {
+                        clearInterval(progressTimer);
+                    }
+                }
+                updateProgress();
+                progressTimer = setInterval(updateProgress, 5000);
+
+                function clearProgress() {
+                    if (progressTimer) {
+                        clearInterval(progressTimer);
+                        progressTimer = null;
+                    }
+                    document.getElementById('loadingText').textContent = '完成';
+                    document.getElementById('loadingSubText').textContent = '';
+                    document.getElementById('loadingProgress').style.width = '100%';
+                }
+
                 const formData = new FormData();
 
                 const databaseTypeElement = document.getElementById('databaseType');
@@ -281,6 +320,7 @@
                 fetch('/DatabaseCheck?handler=Json', requestOptions)
                 .then(response => response.json())
                 .then(data => {
+                    clearProgress();
                     loadingIndicator.style.display = 'none';
                     checkButton.disabled = false;
 
@@ -297,6 +337,7 @@
                     }
                 })
                 .catch(error => {
+                    clearProgress();
                     loadingIndicator.style.display = 'none';
                     checkButton.disabled = false;
                     if (errorMessage) {

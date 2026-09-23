@@ -2,6 +2,7 @@
 using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Threading.Tasks;
@@ -107,30 +108,35 @@ namespace DBCheckAI
                     currentSchema = (await cmd.ExecuteScalarAsync())?.ToString() ?? "public";
                 }
 
-                // Step 2: 获取所有字段信息
+                // Step 2: 获取所有字段信息（用 pg_catalog 获取完整类型信息）
                 string columnsSql = @"
-                    SELECT 
-                        c.TABLE_NAME,
-                        c.COLUMN_NAME,
-                        c.DATA_TYPE,
-                        c.UDT_NAME AS COLUMN_TYPE,
-                        c.IS_NULLABLE,
-                        c.COLUMN_DEFAULT,
-                        c.ORDINAL_POSITION,
-                        COALESCE(pk.CONSTRAINT_TYPE, '') AS COLUMN_KEY
-                    FROM information_schema.COLUMNS c
-                    LEFT JOIN (
-                        SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME, tc.CONSTRAINT_TYPE
-                        FROM information_schema.TABLE_CONSTRAINTS tc
-                        JOIN information_schema.KEY_COLUMN_USAGE kcu 
-                            ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-                            AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
-                            AND tc.TABLE_NAME = kcu.TABLE_NAME
-                        WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-                          AND tc.TABLE_SCHEMA = $1
-                    ) pk ON c.TABLE_NAME = pk.TABLE_NAME AND c.COLUMN_NAME = pk.COLUMN_NAME
-                    WHERE c.TABLE_SCHEMA = $1
-                    ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION";
+                    WITH primary_keys AS (
+                        SELECT
+                            ix.indrelid,
+                            unnest(ix.indkey) AS attnum
+                        FROM pg_catalog.pg_index ix
+                        WHERE ix.indisprimary
+                    )
+                    SELECT
+                        c.relname::text AS TABLE_NAME,
+                        a.attname::text AS COLUMN_NAME,
+                        t.typname AS DATA_TYPE,
+                        pg_catalog.format_type(a.atttypid, a.atttypmod) AS COLUMN_TYPE,
+                        CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END AS IS_NULLABLE,
+                        a.attnum AS ORDINAL_POSITION,
+                        pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS COLUMN_DEFAULT,
+                        CASE WHEN pk.attnum IS NOT NULL THEN 'PRIMARY KEY' ELSE '' END AS COLUMN_KEY
+                    FROM pg_catalog.pg_class c
+                    JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                    JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+                    LEFT JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+                    LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+                    LEFT JOIN primary_keys pk ON pk.indrelid = c.oid AND pk.attnum = a.attnum
+                    WHERE n.nspname = $1
+                      AND c.relkind = 'r'
+                      AND a.attnum > 0
+                      AND NOT a.attisdropped
+                    ORDER BY c.relname, a.attnum";
 
                 using (var cmd = new NpgsqlCommand(columnsSql, conn))
                 {
@@ -144,7 +150,7 @@ namespace DBCheckAI
                                 TableName = reader["TABLE_NAME"].ToString(),
                                 ColumnName = reader["COLUMN_NAME"].ToString(),
                                 DataType = reader["DATA_TYPE"].ToString(),
-                                ColumnType = reader["COLUMN_TYPE"]?.ToString() ?? reader["DATA_TYPE"].ToString(),
+                                ColumnType = reader["COLUMN_TYPE"].ToString(),
                                 IsNullable = reader["IS_NULLABLE"].ToString() == "YES",
                                 ColumnKey = reader["COLUMN_KEY"].ToString() == "PRIMARY KEY" ? "PRI" : "",
                                 ColumnDefault = reader["COLUMN_DEFAULT"]?.ToString(),
@@ -348,56 +354,163 @@ namespace DBCheckAI
         {
             var rules = namingRules ?? "默认命名规范：小写下划线命名法（snake_case）";
             
+            string jsonResponse;
             if (aiProvider == "simulation" || _aiService == null)
             {
-                // 使用模拟实现
-                return SimulateAIResponse(schema, rules, dbType);
+                jsonResponse = SimulateAIResponse(schema, rules, dbType);
             }
             else
             {
-                // 根据选择的提供商配置AI服务
                 var prompt = GenerateAIPrompt(schema, rules, dbType);
-                var aiResponse = await _aiService.GetResponseAsync(prompt, aiProvider);
-                return aiResponse;
+                jsonResponse = await _aiService.GetResponseAsync(prompt, aiProvider);
             }
+
+            return ParseAndRenderReview(jsonResponse);
         }
 
         /// <summary>
-        /// 生成AI提示词
+        /// 解析 AI 返回的 JSON，成功则渲染为 Markdown，失败则降级显示原始文本
+        /// </summary>
+        private string ParseAndRenderReview(string jsonResponse)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var result = JsonSerializer.Deserialize<NamingReviewResult>(jsonResponse, options);
+                if (result?.Summary != null)
+                {
+                    return RenderReviewToMarkdown(result);
+                }
+            }
+            catch
+            {
+                // JSON 解析失败，降级
+            }
+
+            // 降级：直接返回 AI 原始输出
+            return jsonResponse;
+        }
+
+        /// <summary>
+        /// 将结构化的审查结果渲染为 Markdown 报告
+        /// </summary>
+        private string RenderReviewToMarkdown(NamingReviewResult result)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("# 📊 数据库命名规范检查报告");
+            sb.AppendLine();
+            sb.AppendLine($"📅 生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine();
+            sb.AppendLine("## 📌 检查摘要");
+            sb.AppendLine($"- 总表数：{result.Summary.TotalTables} | 总字段数：{result.Summary.TotalColumns}");
+            sb.AppendLine($"- 不合规项：{result.Summary.IssuesCount} | 合规率：{result.Summary.ComplianceRate}%");
+            sb.AppendLine();
+
+            if (result.Issues != null && result.Issues.Count > 0)
+            {
+                sb.AppendLine("## ❌ 不符合规范的命名列表");
+                sb.AppendLine("| 类型 | 对象 | 当前名称 | 问题 | 建议名称 |");
+                sb.AppendLine("|------|------|----------|------|----------|");
+                foreach (var issue in result.Issues)
+                {
+                    var obj = issue.Object ?? "";
+                    var cur = issue.CurrentName ?? "";
+                    var prob = issue.Problem ?? "";
+                    var sug = issue.Suggestion ?? "";
+                    sb.AppendLine($"| {issue.Type} | `{obj}` | `{cur}` | {prob} | {sug} |");
+                }
+            }
+            else
+            {
+                sb.AppendLine("✅ **所有检查项均符合规范！**");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 生成AI提示词（JSON 结构化输出）
         /// </summary>
         private string GenerateAIPrompt(DatabaseSchema schema, string rules, DatabaseType dbType)
         {
             var prompt = new StringBuilder();
             string dbTypeName = dbType == DatabaseType.PostgreSQL ? "PostgreSQL" : "MySQL";
-            prompt.AppendLine($"你是一名数据库命名规范专家，请根据提供的命名规则检查以下{dbTypeName}数据库结构，并生成详细的Markdown格式检查报告。");
+
+            prompt.AppendLine($"你是一名数据库命名规范专家。请检查以下{dbTypeName}数据库结构，并严格按照下面的 JSON Schema 返回结果，只返回 JSON 不要加任何其他内容（包括 Markdown 代码块标记）。");
             prompt.AppendLine();
+            prompt.AppendLine("## 重要：检查规范");
+            prompt.AppendLine("1. 以下名称是**合法**的 snake_case，不要报告：`app_categories`、`platform_code`、`instance_codes` 等由小写字母、数字、下划线组成的名称都是合法的");
+            prompt.AppendLine("2. 一个名称如果**全部由小写字母、数字和下划线组成**，就是合法的 snake_case，不要误报");
+            prompt.AppendLine("3. 对于 `is_` 开头的布尔字段，现代数据库规范中这是常见做法，**无需**建议去掉 `is_` 前缀");
+            prompt.AppendLine("4. **对于用户在`## 命名规则`中明确规定的检查项（如审计属性、唯一索引、默认值等），必须严格执行并报告问题，不要跳过**");
+            prompt.AppendLine("5. **用户的`## 命名规则`中没有规定的内容（如字段类型选择、时区等），一律不要报告**");
+            prompt.AppendLine();
+            prompt.AppendLine("```json");
+            prompt.AppendLine("{");
+            prompt.AppendLine("  \"summary\": {");
+            prompt.AppendLine("    \"total_tables\": 整数,");
+            prompt.AppendLine("    \"total_columns\": 整数,");
+            prompt.AppendLine("    \"issues_count\": 整数,");
+            prompt.AppendLine("    \"compliance_rate\": 浮点数(百分数, 如 85.5)");
+            prompt.AppendLine("  },");
+            prompt.AppendLine("  \"issues\": [");
+            prompt.AppendLine("    {");
+            prompt.AppendLine("      \"type\": \"表名\" 或 \"字段名\",");
+            prompt.AppendLine("      \"object\": \"完整对象路径（表名 或 表名.字段名）\",");
+            prompt.AppendLine("      \"current_name\": \"当前名称\",");
+            prompt.AppendLine("      \"problem\": \"问题描述\",");
+            prompt.AppendLine("      \"suggestion\": \"建议名称 或 建议操作\"");
+            prompt.AppendLine("    }");
+            prompt.AppendLine("  ]");
+            prompt.AppendLine("}");
+            prompt.AppendLine("```");
+            prompt.AppendLine();
+
             prompt.AppendLine("## 命名规则");
             prompt.AppendLine(rules);
             prompt.AppendLine();
-            prompt.AppendLine("## 数据库结构");
-            prompt.AppendLine("| 表名 | 字段名 | 字段类型 | 是否主键 | 是否外键 |");
-            prompt.AppendLine("|------|--------|----------|----------|----------|");
 
+            prompt.AppendLine("## 数据库结构（紧凑格式）");
+            prompt.AppendLine("```");
             foreach (var tableGroup in schema.Columns.GroupBy(s => s.TableName))
             {
+                var tableName = tableGroup.Key;
+                var cols = new List<string>();
                 foreach (var obj in tableGroup)
                 {
-                    prompt.AppendLine($"| {obj.TableName} | {obj.ColumnName} | {obj.ColumnType} | {(obj.ColumnKey == "PRI" ? "是" : "否")} | {(obj.IsForeignKey ? "是" : "否")} |");
+                    var flags = new List<string>();
+                    if (obj.ColumnKey == "PRI") flags.Add("PK");
+                    if (obj.IsForeignKey) flags.Add("FK");
+                    var flagStr = flags.Count > 0 ? $" [{string.Join(",", flags)}]" : "";
+                    // 审计字段特殊标记
+                    var colLower = obj.ColumnName?.ToLower() ?? "";
+                    if (colLower is "created_at" or "updated_at" or "deleted_at" or "created_by" or "updated_by" or "deleted_by")
+                        flagStr += " [审计]";
+                    cols.Add($"{obj.ColumnName}({obj.ColumnType}{flagStr})");
                 }
+                prompt.AppendLine($"  {tableName}: {string.Join(", ", cols)}");
             }
+            prompt.AppendLine("```");
+            prompt.AppendLine();
+            prompt.AppendLine("## 索引信息（紧凑格式）");
+            prompt.AppendLine("```");
+            var tableIndexGroups = schema.Indexes.GroupBy(i => i.TableName);
+            foreach (var tableGroup in tableIndexGroups)
+            {
+                var idxList = new List<string>();
+                foreach (var idx in tableGroup)
+                {
+                    var prefix = idx.IsUnique ? "UQ" : "IDX";
+                    var columns = string.Join(", ", idx.ColumnNames);
+                    idxList.Add($"{prefix}({columns})");
+                }
+                prompt.AppendLine($"  {tableGroup.Key}: {string.Join("; ", idxList)}");
+            }
+            prompt.AppendLine("```");
 
             prompt.AppendLine();
-            prompt.AppendLine("请按照以下格式生成报告：");
-            prompt.AppendLine("1. 报告标题和生成时间");
-            prompt.AppendLine("2. 检查摘要（总表数、总字段数、不合规项数量、合规率）");
-            prompt.AppendLine("3. 不符合规范的命名列表（表格形式，包含以下列：类型、对象、当前名称、问题、建议名称）");
-            prompt.AppendLine("   - 类型为\"表名\"时：对象列为完整表名，当前名称列为该表名");
-            prompt.AppendLine("   - 类型为\"字段名\"时：对象列填写\"表名.字段名\"（例如 \"user_info.email\"），当前名称列为该字段名");
-            prompt.AppendLine("   禁止将字段名和表名分开填写到不同列，必须在一个单元格内体现归属关系");
-            prompt.AppendLine("4. 建议的SQL修复语句");
-            prompt.AppendLine();
-            prompt.AppendLine("请确保报告使用Markdown格式，语言为中文。");
-            
+            prompt.AppendLine("请严格按照上述 JSON Schema 返回，只输出 JSON，不要添加任何解释、不要添加 Markdown 代码块标记。");
+
             return prompt.ToString();
         }
 
@@ -463,8 +576,6 @@ namespace DBCheckAI
             };
 
             var tables = schema.Columns.GroupBy(s => s.TableName);
-            var tablesMissingAudit = new List<string>();
-            var tablesWithOldAudit = new List<string>();
 
             foreach (var tableGroup in tables)
             {
@@ -484,13 +595,11 @@ namespace DBCheckAI
 
                 if (presentOldAudits.Any())
                 {
-                    tablesWithOldAudit.Add(tableName);
                     issues.Add((tableName, tableName, $"表使用了旧版审计属性 ({string.Join(", ", presentOldAudits)})", "请更改为新版审计属性 (如 created_by, deleted_at 等)"));
                 }
                 
                 if (missingNewAudits.Any())
                 {
-                    tablesMissingAudit.Add(tableName);
                     issues.Add((tableName, tableName, $"表缺少新版审计属性: {string.Join(", ", missingNewAudits)}", "请补充完整的新版审计属性"));
                 }
 
@@ -568,38 +677,30 @@ namespace DBCheckAI
                 }
             }
 
-            // 生成报告
-            var result = new StringBuilder();
-            result.AppendLine("# 📊 数据库命名规范检查报告 (v2.0)");
-            result.AppendLine();
-            result.AppendLine($"📅 生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            result.AppendLine();
-            result.AppendLine("## 📌 检查摘要");
-            result.AppendLine($"- 总表数：{tables.Count()} | 总字段数：{schema.Columns.Count}");
-            result.AppendLine($"- 待优化项：{issues.Count}");
-            result.AppendLine();
-
-            if (issues.Count > 0)
+            // 生成 JSON 结果
+            var result = new NamingReviewResult
             {
-                result.AppendLine("## ❌ 待优化项列表");
-                result.AppendLine("| 对象 | 当前名称/描述 | 发现问题 | 建议操作 |");
-                result.AppendLine("|------|--------------|----------|----------|");
-                foreach (var i in issues) result.AppendLine($"| `{i.Object}` | `{i.CurrentName}` | {i.Problem} | {i.Suggestion} |");
-            }
-            else
-            {
-                result.AppendLine("✅ **所有检查项均符合最新规范，包括索引约束！**");
-            }
+                Summary = new NamingReviewSummary
+                {
+                    TotalTables = tables.Count(),
+                    TotalColumns = schema.Columns.Count,
+                    IssuesCount = issues.Count,
+                    ComplianceRate = schema.Columns.Count > 0
+                        ? Math.Round(100.0 - (double)issues.Count / schema.Columns.Count * 100, 2)
+                        : 100.0
+                },
+                Issues = issues.Select(i => new NamingReviewIssue
+                {
+                    Type = i.Object.Contains('.') ? "字段名" : "表名",
+                    Object = i.Object,
+                    CurrentName = i.CurrentName,
+                    Problem = i.Problem,
+                    Suggestion = i.Suggestion
+                }).ToList()
+            };
 
-            if (tablesWithOldAudit.Any() || tablesMissingAudit.Any())
-            {
-                result.AppendLine();
-                result.AppendLine("## ⚠️ 审计属性风险说明");
-                if (tablesWithOldAudit.Any()) result.AppendLine($"- **使用旧版字段 (如 create_time, is_deleted 等) 的表**：{string.Join(", ", tablesWithOldAudit.Select(t => $"`{t}`"))}");
-                if (tablesMissingAudit.Any()) result.AppendLine($"- **缺少/不完整新版审计属性 的表**：{string.Join(", ", tablesMissingAudit.Select(t => $"`{t}`"))}");
-            }
-
-            return result.ToString();
+            var jsonOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true };
+            return JsonSerializer.Serialize(result, jsonOptions);
         }
 
         /// <summary>

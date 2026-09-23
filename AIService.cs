@@ -70,6 +70,42 @@ namespace DBCheckAI
         public DeepSeekMessage? Message { get; set; }
     }
 
+    // ===== 命名规范检查结果模型（独立于 ReviewModels.cs 的代码审查模型） =====
+    public class NamingReviewResult
+    {
+        [JsonPropertyName("summary")]
+        public NamingReviewSummary? Summary { get; set; }
+        [JsonPropertyName("issues")]
+        public List<NamingReviewIssue>? Issues { get; set; }
+    }
+
+    public class NamingReviewSummary
+    {
+        [JsonPropertyName("total_tables")]
+        public int TotalTables { get; set; }
+        [JsonPropertyName("total_columns")]
+        public int TotalColumns { get; set; }
+        [JsonPropertyName("issues_count")]
+        public int IssuesCount { get; set; }
+        [JsonPropertyName("compliance_rate")]
+        public double ComplianceRate { get; set; }
+    }
+
+    public class NamingReviewIssue
+    {
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
+        [JsonPropertyName("object")]
+        public string? Object { get; set; }
+        [JsonPropertyName("current_name")]
+        public string? CurrentName { get; set; }
+        [JsonPropertyName("problem")]
+        public string? Problem { get; set; }
+        [JsonPropertyName("suggestion")]
+        public string? Suggestion { get; set; }
+    }
+    // ===== 结束命名规范检查结果模型 =====
+
     public class AIService : IAIService
     {
         private readonly HttpClient _httpClient;
@@ -140,13 +176,18 @@ namespace DBCheckAI
 
             // 发送请求
             var response = await _httpClient.PostAsync(_config.TongyiConfig.BaseUrl, content);
-            response.EnsureSuccessStatusCode();
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"通义千问 API 调用失败: {response.StatusCode} - {responseContent}");
+            }
 
             // 解析响应
-            var responseContent = await response.Content.ReadAsStringAsync();
             var result = JsonSerializer.Deserialize<TongyiResponse>(responseContent);
 
-            return result?.output?.text?.Trim() ?? string.Empty;
+            var outputText = result?.output?.text?.Trim();
+            return outputText ?? string.Empty;
         }
 
         private async Task<string> CallDeepSeekAsync(string prompt)
@@ -164,6 +205,8 @@ namespace DBCheckAI
             // 构建请求体，使用匿名类型确保正确的JSON序列化
             var requestBody = new {
                 model = _config.DeepSeekConfig.Model,
+                temperature = 0,
+                seed = 20240601,
                 messages = new List<object> {
                     new {
                         role = "user",
